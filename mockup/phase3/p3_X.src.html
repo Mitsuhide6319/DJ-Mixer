@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 3 案X 条件を決めて3案から選ぶ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.xgrid{display:grid;grid-template-columns:380px 1fr;gap:10px;align-items:start}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案X 条件を決めて3案から選ぶ</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 候補群 259 曲の実際の解析と、試作の並べ替えの結果</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab">つなぎ目</div><div class="tab on">おまかせ</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div id="an"></div>
+        <div class="xgrid">
+          <div class="p2card cond">
+            <div><h4>出発点</h4><div class="seg2 big" id="mode"><div class="on" data-m="lib">ライブラリから選んで作る</div><div data-m="queue">キューの曲を並べ替える</div></div></div>
+            <div id="libconds">
+              <div style="margin-bottom:14px"><h4>起点の曲（最初にかける曲）</h4><div class="seedbox" id="seed"></div></div>
+              <div style="margin-bottom:14px"><h4>選ぶ範囲（ジャンルのまとまり。数字は解析済み / 全体）</h4><div class="gchips" id="groups"></div></div>
+              <div><h4>長さ</h4><div class="seg2 big" id="len"><div>20分</div><div class="on">40分</div><div>60分</div><div>90分</div></div></div>
+            </div>
+            <div id="qconds" style="display:none" class="lbl2"></div>
+            <div><h4>流れ</h4><div class="flows" id="flows"></div></div>
+            <div class="btn primary" id="go" style="height:44px">おまかせで作る</div>
+            <div class="lbl2" style="line-height:1.7">テンポ（倍/半も考慮）・キー・繋ぐ部分の響き・音の雰囲気の近さで並びを探し、曲ごとの使う範囲と繋ぎ方も決めます。結果はキューに入れてから、つなぎ目タブで直せます。</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="ptabs" id="ptabs"></div>
+            <div class="p2card">
+              <div class="lbl2" style="margin-bottom:6px">ミックス全体（曲の帯をクリックすると下の一覧でその曲を示します。緑＝拍を合わせて重ねる、黄＝エコーアウト）</div>
+              <canvas class="tlc" id="tl"></canvas>
+            </div>
+            <div class="p2card"><div class="tlist" id="list"></div></div>
+            <div class="acts">
+              <div class="btn primary" id="toq">この案をキューに入れる</div>
+              <div class="btn">▶ つなぎ目だけ次々に試聴</div>
+              <div class="btn" id="again">条件はそのままで作り直す</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="queue" id="queue"></aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { D, T, C, esc, fmt, TPL, TPL_BARS, FLOWS, fitCanvas, drawTimeline, partsHTML, scoreColor, renderQueue, analysisBar } = P3;
+let mode = 'lib', flow = 'up', plan = 0, sel = -1, hover = -1, boxes = [];
+const seed = T[D.seed];
+const qRows = D.plans.queue[1].tracks;       // 今のキュー（今の並び）
+renderQueue(document.getElementById('queue'), qRows);
+analysisBar(document.getElementById('an'));
+
+document.getElementById('seed').innerHTML = `<div><b>${esc(seed.title)}</b> <span>${esc(seed.artist)} ・ ${seed.bpm.toFixed(1)} BPM ・ ${seed.camelot}</span></div><div class="sp" style="flex:1"></div><div class="btn" style="height:30px;min-width:0;font-size:12px">変更…</div>`;
+document.getElementById('groups').innerHTML = D.groups.map((g, i) =>
+  `<label class="gchip ${i === 0 ? 'on' : ''}"><input type="checkbox" ${i === 0 ? 'checked' : ''}>${g.name}<small>${g.analyzed} / ${g.total.toLocaleString()}</small></label>`).join('');
+document.querySelectorAll('#groups input').forEach(x => x.addEventListener('change', () => x.parentElement.classList.toggle('on', x.checked)));
+document.querySelectorAll('#len div').forEach(x => x.addEventListener('click', () => document.querySelectorAll('#len div').forEach(o => o.classList.toggle('on', o === x))));
+
+// 流れの選択（小さな曲線）
+const fl = document.getElementById('flows');
+fl.innerHTML = Object.entries(FLOWS).map(([k, f]) => `<div class="flow ${k === flow ? 'on' : ''}" data-f="${k}"><canvas></canvas>${f.name}</div>`).join('');
+function drawFlows() {
+  fl.querySelectorAll('.flow').forEach(el => {
+    const [g, W, H, d] = fitCanvas(el.querySelector('canvas'));
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = el.classList.contains('on') ? '#fb923c' : '#8a9099'; g.lineWidth = 2 * d; g.beginPath();
+    for (let k = 0; k <= 30; k++) { const x = 4 * d + k / 30 * (W - 8 * d), y = H - 4 * d - FLOWS[el.dataset.f].f(k / 30, 0.45) * (H - 8 * d); k ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+  });
+}
+fl.addEventListener('click', e => { const f = e.target.closest('[data-f]'); if (!f) return; flow = f.dataset.f; fl.querySelectorAll('.flow').forEach(x => x.classList.toggle('on', x === f)); drawFlows(); if (mode === 'lib') { plan = 0; render(); } });
+
+document.getElementById('mode').addEventListener('click', e => {
+  const m = e.target.closest('[data-m]'); if (!m) return;
+  mode = m.dataset.m;
+  document.querySelectorAll('#mode div').forEach(x => x.classList.toggle('on', x === m));
+  document.getElementById('libconds').style.display = mode === 'lib' ? '' : 'none';
+  const q = document.getElementById('qconds');
+  q.style.display = mode === 'queue' ? '' : 'none';
+  q.innerHTML = `キューにある ${qRows.length} 曲の並び・使う範囲・繋ぎ方を決め直します（曲は入れ替えません）。<br>最初の曲も含めて探します。`;
+  plan = 0; sel = -1; render();
+});
+document.getElementById('go').addEventListener('click', () => { plan = 0; sel = -1; render(); flashBtn(document.getElementById('go'), 'できました（3 案）'); });
+document.getElementById('again').addEventListener('click', () => { plan = (plan + 1) % curPlans().length; render(); });
+document.getElementById('toq').addEventListener('click', () => {
+  renderQueue(document.getElementById('queue'), curPlans()[plan].tracks, 'おまかせの案をキューに入れました。つなぎ目タブで直せます');
+});
+function flashBtn(b, t) { const o = b.textContent; b.textContent = t; setTimeout(() => b.textContent = o, 1200); }
+
+const curPlans = () => mode === 'lib' ? D.plans[flow] : D.plans.queue;
+function render() {
+  const ps = curPlans();
+  document.getElementById('ptabs').innerHTML = ps.map((p, i) => {
+    const n = p.tracks.length, arts = [...new Set(p.tracks.map(r => (T[r.id].artist ?? '').split(/[,;/]/)[0].slice(0, 18)))].slice(0, 3).join('・');
+    const name = mode === 'queue' ? (i === 0 ? 'おまかせの並び' : '今の並び') : `案${i + 1}`;
+    return `<div class="ptab ${i === plan ? 'on' : ''}" data-p="${i}"><b>${name}</b> <span style="color:${scoreColor(p.score)};font-family:var(--mono)">相性 ${p.score.toFixed(2)}</span>
+      <div>${n}曲 ・ 約${Math.round(p.minutes)}分 ・ ${esc(arts)} …</div></div>`;
+  }).join('');
+  drawTL();
+  renderList();
+}
+document.getElementById('ptabs').addEventListener('click', e => { const p = e.target.closest('[data-p]'); if (p) { plan = +p.dataset.p; sel = -1; render(); } });
+
+function drawTL() {
+  const r = drawTimeline(document.getElementById('tl'), curPlans()[plan].tracks, { flow: mode === 'lib' ? flow : 'keep', e0: T[curPlans()[plan].tracks[0].id].energy, sel, hover, minutes: 40 });
+  boxes = r.boxes;
+}
+const tl = document.getElementById('tl');
+const hit = ev => { const r = tl.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top; const b = boxes.find(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1); return b ? b.i : -1; };
+tl.addEventListener('mousemove', ev => { const h = hit(ev); if (h !== hover) { hover = h; drawTL(); } });
+tl.addEventListener('click', ev => { const h = hit(ev); if (h >= 0) { sel = h; drawTL(); renderList(); document.querySelector(`.trow[data-i="${h}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } });
+
+function renderList() {
+  const rows = curPlans()[plan].tracks;
+  document.getElementById('list').innerHTML = rows.map((r, i) => {
+    const t = T[r.id];
+    let h = `<div class="trow ${i === sel ? 'sel' : ''}" data-i="${i}"><span class="no">${i + 1}</span>
+      <div><b>${esc(t.title)}</b> <small>${esc(t.artist ?? '')} ・ 使う範囲 ${fmt(t.use.t0)}–${fmt(t.use.t1)}${t.use.notes.length ? '（' + t.use.notes.join('・') + '）' : ''}</small></div>
+      <span style="font-family:var(--mono);color:var(--dim)">${t.bpm.toFixed(1)} BPM</span><span style="font-family:var(--mono);color:var(--dim)">${t.camelot}</span></div>`;
+    if (r.join) h += `<div class="jrow"><span></span><div class="why"><span style="color:${scoreColor(r.join.score)};font-family:var(--mono)">↓ ${r.join.score.toFixed(2)}</span>
+      <b style="color:var(--text);font-weight:600">${TPL[r.join.tpl]} ${TPL_BARS[r.join.tpl]}小節</b>${partsHTML(r.join)}<span>${esc(r.join.why.join(' ／ '))}</span></div></div>`;
+    return h;
+  }).join('');
+}
+addEventListener('resize', () => { drawFlows(); drawTL(); });
+drawFlows(); render();
+</script>
+</body></html>

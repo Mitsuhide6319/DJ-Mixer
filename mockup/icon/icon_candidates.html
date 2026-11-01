@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — アイコンの案</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#0b0c0e;color:#e8e8e8;font-family:"Yu Gothic UI","Segoe UI",sans-serif;font-size:13px}
+.wrap{max-width:1200px;margin:0 auto;padding:20px}
+h1{font-size:18px;margin:0 0 6px}p{color:#8a9099;line-height:1.8;margin:0 0 16px}
+.card{border:1px solid #2a2e35;border-radius:10px;padding:16px 18px;margin-bottom:14px;background:#15171b}
+.card h2{font-size:15px;margin:0 0 4px}.card .d{color:#8a9099;margin-bottom:12px}
+.row{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
+.sz{display:flex;flex-direction:column;align-items:center;gap:6px;color:#50565f;font-size:11px}
+.bg{display:flex;gap:10px;padding:10px;border-radius:8px}
+.bg.light{background:#e9ecef}.bg.dark{background:#202124}
+.task{display:flex;align-items:center;gap:8px;background:#1c1c1c;border-radius:6px;padding:6px 10px;color:#ddd;font-size:12px}
+svg{display:block}
+</style></head><body><div class="wrap">
+<h1>DJ Mixer のアイコンの案</h1>
+<p>アプリの配色（デッキ A＝水色、デッキ B＝橙、アクセント＝赤）に合わせた 3 案です。256・64・32・16 ピクセル（タスクバー・エクスプローラーで実際に使う大きさ）と、明るい／暗い背景で並べています。</p>
+
+<template id="A">
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="bgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f26"/><stop offset="1" stop-color="#0b0c0e"/></linearGradient></defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bgA)"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#2f343c" stroke-width="3"/>
+  <circle cx="98" cy="118" r="62" fill="#0e1a1d" stroke="#22d3ee" stroke-width="14"/>
+  <circle cx="98" cy="118" r="34" fill="none" stroke="#22d3ee" stroke-opacity=".35" stroke-width="5"/>
+  <circle cx="98" cy="118" r="10" fill="#22d3ee"/>
+  <circle cx="158" cy="118" r="62" fill="#1d140e" fill-opacity=".85" stroke="#fb923c" stroke-width="14"/>
+  <circle cx="158" cy="118" r="34" fill="none" stroke="#fb923c" stroke-opacity=".35" stroke-width="5"/>
+  <circle cx="158" cy="118" r="10" fill="#fb923c"/>
+  <rect x="58" y="204" width="140" height="12" rx="6" fill="#2a2e35"/>
+  <rect x="112" y="194" width="32" height="32" rx="7" fill="#ef4444"/>
+</svg></template>
+
+<template id="B">
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#0f1115"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#2f343c" stroke-width="3"/>
+  <g stroke-linecap="round" stroke-width="14">
+    <line x1="48" y1="104" x2="48" y2="152" stroke="#22d3ee"/><line x1="72" y1="78" x2="72" y2="178" stroke="#22d3ee"/>
+    <line x1="96" y1="96" x2="96" y2="160" stroke="#22d3ee"/><line x1="120" y1="64" x2="120" y2="192" stroke="#22d3ee" stroke-opacity=".75"/>
+    <line x1="136" y1="70" x2="136" y2="186" stroke="#fb923c" stroke-opacity=".75"/><line x1="160" y1="92" x2="160" y2="164" stroke="#fb923c"/>
+    <line x1="184" y1="74" x2="184" y2="182" stroke="#fb923c"/><line x1="208" y1="106" x2="208" y2="150" stroke="#fb923c"/>
+  </g>
+  <rect x="122" y="42" width="12" height="172" rx="6" fill="#ef4444" opacity=".9"/>
+</svg></template>
+
+<template id="C">
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="ring" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#fb923c"/></linearGradient></defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#0f1115"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#2f343c" stroke-width="3"/>
+  <circle cx="128" cy="116" r="78" fill="#121418" stroke="url(#ring)" stroke-width="16"/>
+  <circle cx="128" cy="116" r="54" fill="none" stroke="#e8e8e8" stroke-opacity=".08" stroke-width="6"/>
+  <circle cx="128" cy="116" r="34" fill="none" stroke="#e8e8e8" stroke-opacity=".08" stroke-width="6"/>
+  <circle cx="128" cy="116" r="14" fill="#ef4444"/>
+  <path d="M128 116 L190 60" stroke="#e8e8e8" stroke-width="8" stroke-linecap="round" opacity=".85"/>
+  <rect x="50" y="206" width="156" height="12" rx="6" fill="#2a2e35"/>
+  <rect x="50" y="206" width="78" height="12" rx="6" fill="#22d3ee"/>
+  <rect x="128" y="206" width="78" height="12" rx="6" fill="#fb923c"/>
+</svg></template>
+
+<div id="cards"></div>
+<script>
+const NAMES = {
+  A: ['案A: 2 枚のレコード（おすすめ）', '水色と橙の 2 枚のレコードが重なり、下に赤いクロスフェーダー。「2 つのデッキを繋ぐ」を一目で。16px でも 2 つの輪が見分けやすい'],
+  B: ['案B: 波形のクロスフェード', '左の水色の波形から右の橙の波形へ、真ん中の赤い線で切り替わる。アプリの波形表示に近い'],
+  C: ['案C: 1 枚のレコード＋針', '水色→橙のグラデーションの輪のレコードと針、下に 2 色のクロスフェーダー。落ち着いた印象'],
+};
+for (const k of ['A', 'B', 'C']) {
+  const svg = document.getElementById(k).innerHTML;
+  const at = s => `<div class="sz">${svg.replace('<svg ', `<svg width="${s}" height="${s}" `)}${s}px</div>`;
+  document.getElementById('cards').insertAdjacentHTML('beforeend', `<div class="card"><h2>${NAMES[k][0]}</h2><div class="d">${NAMES[k][1]}</div>
+    <div class="row">${at(256)}${at(64)}${at(32)}${at(16)}
+      <div class="bg light">${[48, 32, 16].map(s => svg.replace('<svg ', `<svg width="${s}" height="${s}" `)).join('')}</div>
+      <div class="bg dark">${[48, 32, 16].map(s => svg.replace('<svg ', `<svg width="${s}" height="${s}" `)).join('')}</div>
+      <div class="task">${svg.replace('<svg ', '<svg width="24" height="24" ')}DJ Mixer</div></div></div>`);
+}
+</script>
+</div></body></html>

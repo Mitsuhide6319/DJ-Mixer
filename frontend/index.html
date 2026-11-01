@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>DJ Mixer</title>
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="logo">DJ<b>●</b>MIXER</div>
+    <div class="stat">MASTER <em id="mbpm">—</em> BPM</div>
+    <div class="stat">LIMITER <em id="limiter">—</em></div>
+    <div class="stat">出力 <em id="outdev">既定のデバイス</em></div>
+    <div class="sp"></div>
+    <div class="diag" id="diag"></div>
+    <div class="stat">解析キュー <em id="anq">0</em></div>
+    <div class="stat">MIDI <em id="midist">未接続</em></div>
+  </div>
+
+  <div class="strip">
+    <div class="dinfo a">
+      <div class="dl">A</div>
+      <div class="ttl"><b id="tA"></b><span id="arA"></span></div>
+      <div class="flags" id="flagsA"></div>
+      <div class="key" id="kA">—</div>
+      <div class="bpm"><span id="bA">—</span><small id="pA"></small></div>
+      <div class="time" id="rA">—</div>
+    </div>
+    <canvas id="zoom"></canvas>
+    <div class="dinfo b">
+      <div class="dl">B</div>
+      <div class="ttl"><b id="tB"></b><span id="arB"></span></div>
+      <div class="flags" id="flagsB"></div>
+      <div class="key" id="kB">—</div>
+      <div class="bpm"><span id="bB">—</span><small id="pB"></small></div>
+      <div class="time" id="rB">—</div>
+    </div>
+    <div class="ovs"><canvas id="ovA"></canvas><canvas id="ovB"></canvas></div>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <div class="tabs">
+        <div class="tab on" data-v="deckview">デッキ</div>
+        <div class="tab" data-v="libview">ライブラリ</div>
+        <div class="tab" data-v="joinview">つなぎ目</div>
+        <div class="tab" data-v="autoview">おまかせ</div>
+        <div class="tab" data-v="mixview">ミックス</div>
+        <div class="tab" data-v="setview">設定</div>
+        <div class="sp"></div>
+        <div class="qnext" id="qnext"></div>
+        <div class="qtoggle" id="qtoggle" title="ミックスキューの表示/非表示（Q）"><span id="qlabel"></span><kbd>Q</kbd></div>
+      </div>
+      <div class="view on" id="deckview">
+        <div class="deck a" id="deckA"></div>
+        <div class="mixer" id="mixer"></div>
+        <div class="deck b" id="deckB"></div>
+      </div>
+      <div class="view" id="libview">
+        <div class="tree" id="libtree">
+          <div class="search"><input id="libsearch" placeholder="検索（曲名・アーティスト・アルバム）"></div>
+        </div>
+        <div class="libmain"><div class="libchips" id="libchips"></div><div class="tbl"><table id="libtbl"></table></div></div>
+      </div>
+      <div class="view" id="joinview"></div>
+      <div class="view" id="autoview"><div id="bulkbar"></div><div id="autobody"></div></div>
+      <div class="view" id="mixview"></div>
+      <div class="view" id="setview"></div>
+    </div>
+
+    <aside class="queue">
+      <div class="qhead">
+        <h3>ミックスキュー <small id="qsum"></small></h3>
+        <div class="qtools">
+          <div class="btn" id="qadd">＋ ライブラリから追加</div>
+          <div class="btn" id="qomakase">おまかせで並べる</div>
+          <div class="btn" id="qsave">保存</div>
+          <div class="btn" id="qclear" title="キューを空にします（確かめてから）">クリア</div>
+        </div>
+      </div>
+      <div class="qlist" id="qlist"></div>
+      <div class="qfoot">
+        <div class="qmix"><div class="btn" id="qmix">▶ ミックスを通して再生</div><div class="btn" id="qstop">■ 止める</div></div>
+        <div class="btn" id="qexport">⤓ ミックスを書き出す…</div>
+        <div class="recstat" id="recstat" hidden></div>
+        <div class="btn" id="qloadnext">次の曲を空いたデッキへ ▶</div>
+        <div class="chk" id="qauto"><i>✓</i>空いたデッキに次の曲を自動で読み込む</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

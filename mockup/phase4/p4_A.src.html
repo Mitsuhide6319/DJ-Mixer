@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 4 案A 繋ぎ方を増やす</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.agrid .p2card h4{margin:0 0 8px;font-size:13px}
+.info{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}.info b{font-family:var(--mono)}
+.okc{color:var(--ok)}.midc{color:var(--warn)}.ngc{color:var(--active)}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案A 繋ぎ方を増やす（つなぎ目エディタ）</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 波形・小節は実際の解析データ</div></div>
+  <div class="p2main noqueue">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab on">つなぎ目</div><div class="tab">おまかせ</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div class="p2card"><div class="p2title"><b id="ttl"></b></div><div class="info" id="info" style="margin-top:8px"></div></div>
+        <div class="agrid">
+          <div class="p2card"><h4>テンポの合わせ方</h4><div class="seg2" id="tempo"><div data-v="sync" class="on">次の曲を合わせる</div><div data-v="ramp">テンポランプ</div></div>
+            <p class="note" id="tnote"></p></div>
+          <div class="p2card"><h4>ループで延ばす（前の曲の終わりを繰り返す）</h4><div class="seg2" id="loop"><div data-v="0" class="on">なし</div><div data-v="4">4 小節</div><div data-v="8">8 小節</div></div>
+            <p class="note">前の曲の使う範囲の最後の N 小節を繰り返し、そのぶん重なりを長く取ります。アウトロが短い曲でも長く重ねられます。</p></div>
+          <div class="p2card"><h4>キー合わせ（次の曲を半音ずらす）</h4><div class="seg2" id="key"><div data-v="-2">−2</div><div data-v="-1">−1</div><div data-v="0" class="on">そのまま</div><div data-v="1">＋1</div><div data-v="2">＋2</div></div>
+            <p class="note" id="knote"></p></div>
+        </div>
+        <div class="p2card">
+          <div class="lbl2" style="margin-bottom:6px">つなぎ目（小節の目盛りを共通にして上下に重ねています。斜線はループで繰り返す小節）</div>
+          <canvas class="cv" id="ed" style="height:240px"></canvas>
+          <div class="lbl2" style="margin:10px 0 4px">ミキサーとテンポの動き</div>
+          <canvas class="cv" id="auto" style="height:210px"></canvas>
+        </div>
+        <div class="p2card note">おまかせも新しい繋ぎ方を自動で使います: テンポ差 6〜15% → テンポランプ、キーが合わず半音ずらすと合う → キー合わせ（±1 まで）、前の曲の終わりの拍が取れる部分が重なりより短い → ループ。高速書き出しも同じ動きで計算します。</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { T, C, fmt, fitCanvas, drawWave } = P2;
+const A = T[2], B = T[3];                 // Asayake → Night storm
+const st = { tempo: 'sync', loop: 0, key: 0 };
+const N = 16, VIEW = 48;
+A.use = { t0: 0, t1: A.barTimes[A.barTimes.length - 6] }; B.use = { t0: B.barTimes[0], t1: B.duration };
+function camShift(c, s) { const n = parseInt(c), l = c.slice(-1); return `${((n - 1 + 7 * s) % 12 + 12) % 12 + 1}${l}`; }
+function keyRel(k1, k2) {
+  const n1 = parseInt(k1), n2 = parseInt(k2), l1 = k1.slice(-1), l2 = k2.slice(-1), dn = Math.min((n1 - n2 + 12) % 12, (n2 - n1 + 12) % 12);
+  if (dn === 0 && l1 === l2) return ['同じキー', 'okc']; if ((dn === 1 && l1 === l2) || (dn === 0 && l1 !== l2)) return ['隣のキー', 'okc'];
+  if (dn === 2 && l1 === l2) return ['2つ隣', 'midc']; return ['キーが離れている', 'ngc'];
+}
+function render() {
+  document.getElementById('ttl').textContent = `${A.title} → ${B.title}`;
+  const pct = (A.bpm / B.bpm - 1) * 100, kb = camShift(B.camelot, st.key), kr = keyRel(A.camelot, kb);
+  document.getElementById('info').innerHTML = `<span>テンポ <b>${A.bpm.toFixed(1)} → ${B.bpm.toFixed(1)}</b> BPM（${pct.toFixed(1)}%）</span>
+    <span>キー <b>${A.camelot} → ${kb}</b>${st.key ? `（元は ${B.camelot}、${st.key > 0 ? '+' : ''}${st.key} 半音）` : ''} ・ <span class="${kr[1]}">${kr[0]}</span></span>
+    <span>重なり <b>${N + st.loop}</b> 小節${st.loop ? `（うち ${st.loop} 小節はループ）` : ''}</span>`;
+  document.getElementById('tnote').textContent = st.tempo === 'ramp'
+    ? `重なりの ${N + st.loop} 小節で、前の曲を ${A.bpm.toFixed(1)} → ${B.bpm.toFixed(1)} BPM へ少しずつ上げます。次の曲は重なりの終わりで原速になり、繋いだ後に速度を戻す必要がありません。`
+    : `次の曲を ${A.bpm.toFixed(1)} BPM に合わせ（${(-pct).toFixed(1)}%）、繋いだ後に 8 小節かけて原速へ戻します（今までの動き）。`;
+  const best = [-2, -1, 1, 2].map(s => [s, keyRel(A.camelot, camShift(B.camelot, s))]).find(([, r]) => r[1] === 'okc');
+  document.getElementById('knote').innerHTML = `${A.camelot} と ${B.camelot} は ${keyRel(A.camelot, B.camelot)[0]}。` + (best ? `<b>${best[0] > 0 ? '+' : ''}${best[0]} 半音</b>で ${camShift(B.camelot, best[0])}（${best[1][0]}）になります。` : '') + '音程だけを変え、テンポは変えません。重なりの間だけずらすか、曲の終わりまでずらすかも選べます。';
+  for (const [id, v] of [['tempo', st.tempo], ['loop', st.loop], ['key', st.key]]) document.querySelectorAll(`#${id} div`).forEach(x => x.classList.toggle('on', String(v) === x.dataset.v));
+  drawEd(); drawAuto();
+}
+function geom(W) {
+  const n = N + st.loop, left = -Math.floor((VIEW - n) / 2), ppb = W / VIEW;
+  return { n, left, X: rel => (rel - left) * ppb };
+}
+function drawEd() {
+  const [g, W, H, d] = fitCanvas(document.getElementById('ed')); const { n, left, X } = geom(W);
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  const lh = (H - 30 * d) / 2, yA = 20 * d, yB = yA + lh + 8 * d;
+  g.fillStyle = 'rgba(34,197,94,.13)'; g.fillRect(X(0), yA, n * W / VIEW, H - yA);
+  const aEnd = A.barTimes.findIndex(t => t >= A.use.t1 - 0.05);
+  for (let rel = left; rel < left + VIEW; rel++) {
+    if (rel < n) {
+      let ia = aEnd - (N) + rel, loop = false;
+      if (rel >= N - st.loop && st.loop) { ia = aEnd - st.loop + ((rel - (N - st.loop)) % st.loop); loop = rel >= N; }
+      if (rel >= N) { ia = aEnd - st.loop + ((rel - N) % st.loop); loop = true; }
+      if (ia >= 0 && ia + 1 < A.barTimes.length) {
+        drawWave(g, A, A.barTimes[ia], A.barTimes[ia + 1], X(rel), X(rel + 1), yA, lh, 0.95);
+        if (loop) { g.save(); g.strokeStyle = 'rgba(250,204,21,.35)'; g.lineWidth = d; for (let x = X(rel); x < X(rel + 1); x += 6 * d) { g.beginPath(); g.moveTo(x, yA); g.lineTo(x + 6 * d, yA + lh); g.stroke(); } g.restore(); }
+      }
+    }
+    if (rel >= 0 && rel + 1 < B.barTimes.length) drawWave(g, B, B.barTimes[rel], B.barTimes[rel + 1], X(rel), X(rel + 1), yB, lh, 0.95);
+  }
+  for (let rel = left; rel <= left + VIEW; rel++) { g.fillStyle = rel % 4 ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.35)'; g.fillRect(Math.round(X(rel)), yA, d, H - yA); if (rel % 4 === 0) { g.fillStyle = C['--dim']; g.font = `${10 * d}px Consolas`; g.fillText(`${rel > 0 ? '+' : ''}${rel}`, X(rel) + 3 * d, 13 * d); } }
+  if (st.loop) { g.fillStyle = '#facc15'; g.font = `${11 * d}px "Yu Gothic UI"`; g.fillText(`↻ 最後の ${st.loop} 小節を繰り返す`, X(N) + 4 * d, yA + 14 * d); }
+}
+function drawAuto() {
+  const [g, W, H, d] = fitCanvas(document.getElementById('auto')); const { n, left, X } = geom(W);
+  g.fillStyle = '#0a0b0d'; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(34,197,94,.10)'; g.fillRect(X(0), 0, X(n) - X(0), H);
+  const rows = 3, rh = H / rows;
+  // テンポ（BPM）の線: 前の曲（青）と次の曲（橙）。y は 108〜124 BPM
+  const y0 = 6 * d, h = rh * 1.4, Y = b => y0 + (1 - (b - 108) / 16) * h;
+  const tempo = rel => {
+    if (st.tempo === 'ramp') { const u = Math.max(0, Math.min(1, rel / n)); return A.bpm + (B.bpm - A.bpm) * u; }
+    if (rel < n) return A.bpm;
+    const u = Math.min(1, (rel - n) / 8); return A.bpm + (B.bpm - A.bpm) * u;
+  };
+  g.strokeStyle = 'rgba(255,255,255,.08)'; for (const b of [110, 114, 118, 122]) { g.fillStyle = C['--faint']; g.font = `${9 * d}px Consolas`; g.fillText(String(b), 4 * d, Y(b) + 3 * d); g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(28 * d, Y(b), W, d); }
+  for (const [col, from, to] of [[C['--deck-a'], left, n], [C['--deck-b'], 0, left + VIEW]]) {
+    g.strokeStyle = col; g.lineWidth = 2.5 * d; g.beginPath();
+    for (let rel = from; rel <= to; rel += 0.25) { const x = X(rel), y = Y(tempo(rel)); rel === from ? g.moveTo(x, y) : g.lineTo(x, y); }
+    g.stroke();
+  }
+  g.fillStyle = C['--dim']; g.font = `${11 * d}px "Yu Gothic UI"`; g.fillText('テンポ（BPM。青＝前の曲、橙＝次の曲。重なっている間は同じ）', 34 * d, 14 * d);
+  // クロスフェーダーと LOW
+  const ry = rh * 1.6, rh2 = (H - ry) / 2;
+  const line = (fn, row, col, name) => { const top = ry + row * rh2 + 6 * d, hh = rh2 - 12 * d; g.strokeStyle = col; g.lineWidth = 2 * d; g.beginPath(); for (let rel = left; rel <= left + VIEW; rel += 0.25) { const u = Math.max(0, Math.min(1, rel / n)), v = fn(u); const x = X(rel), y = top + (1 - v) * hh; rel === left ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); g.fillStyle = C['--dim']; g.fillText(name, 34 * d, top + 10 * d); };
+  line(u => u, 0, '#e8e8e8', 'クロスフェーダー（上が次の曲）');
+  line(u => (u < 0.5 ? 1 : 0), 1, C['--deck-a'], '前の曲の LOW（下）・次の曲の LOW（上）');
+  line(u => (u < 0.5 ? 0 : 1), 1, C['--deck-b'], '');
+}
+for (const id of ['tempo', 'loop', 'key']) document.getElementById(id).addEventListener('click', e => { const x = e.target.closest('[data-v]'); if (!x) return; st[id] = id === 'tempo' ? x.dataset.v : +x.dataset.v; render(); });
+addEventListener('resize', render);
+render();
+</script>
+</body></html>

@@ -1,0 +1,13 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="bgA_A" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f26"/><stop offset="1" stop-color="#0b0c0e"/></linearGradient></defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bgA_A)"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#2f343c" stroke-width="3"/>
+  <circle cx="98" cy="118" r="62" fill="#0e1a1d" stroke="#22d3ee" stroke-width="14"/>
+  <circle cx="98" cy="118" r="34" fill="none" stroke="#22d3ee" stroke-opacity=".35" stroke-width="5"/>
+  <circle cx="98" cy="118" r="10" fill="#22d3ee"/>
+  <circle cx="158" cy="118" r="62" fill="#1d140e" fill-opacity=".85" stroke="#fb923c" stroke-width="14"/>
+  <circle cx="158" cy="118" r="34" fill="none" stroke="#fb923c" stroke-opacity=".35" stroke-width="5"/>
+  <circle cx="158" cy="118" r="10" fill="#fb923c"/>
+  <rect x="58" y="204" width="140" height="12" rx="6" fill="#2a2e35"/>
+  <rect x="112" y="194" width="32" height="32" rx="7" fill="#ef4444"/>
+</svg>

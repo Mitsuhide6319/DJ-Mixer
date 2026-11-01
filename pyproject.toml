@@ -1,0 +1,39 @@
+[project]
+name = "dj-mixer"
+version = "0.0.1"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch>=2.5",
+    "beat-this",
+    "librosa>=0.10",
+    "soundfile",
+    "pyloudnorm",
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "python-stretch>=0.3.1",
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.54.0",
+    "pywebview>=6.2.1",
+    "python-rtmidi>=1.5.8",
+    "mutagen>=1.48.1",
+    "demucs>=4.0.1",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

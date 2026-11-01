@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 5 案E iTunes の取り込み</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#0b0c0e;--panel:#15171b;--panel2:#1b1e23;--line:#2a2e35;--text:#e8e8e8;--dim:#8a9099;--faint:#50565f;
+  --deck-a:#22d3ee;--deck-b:#fb923c;--active:#ef4444;--ok:#22c55e;--warn:#eab308;--it:#f472b6;--mono:"Consolas","Cascadia Mono",monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Yu Gothic UI","Segoe UI",sans-serif;font-size:13px}
+.wrap{max-width:1500px;margin:0 auto;padding:16px}
+h1{font-size:18px;margin:0 0 4px}.sub{color:var(--dim);margin:0 0 14px;line-height:1.7}
+.switch{display:flex;gap:6px;margin-bottom:12px}
+.switch div{padding:8px 14px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--dim)}
+.switch div.on{background:#22262c;color:var(--text);border-color:#3a3f47}
+.scr{display:none}.scr.on{display:block}
+.frame{border:1px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden}
+.tabs{display:flex;gap:2px;padding:0 10px;border-bottom:1px solid var(--line);background:#0e1013}
+.tabs div{padding:9px 16px;color:var(--dim);font-size:12px}.tabs div.on{color:var(--text);border-bottom:2px solid var(--deck-a)}
+.note{margin-top:10px;padding:10px 14px;border-left:3px solid var(--it);background:#16131a;color:#d9c7d3;line-height:1.8}
+.note b{color:#fff}
+/* 設定 */
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 16px}
+section h3{margin:0 0 10px;font-size:14px}
+.srow{display:flex;gap:10px;align-items:center;margin:8px 0}.srow label{width:150px;color:var(--dim)}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:5px;border:1px solid #333840;background:#1f2329;white-space:nowrap}
+.btn.primary{border-color:var(--deck-b);color:#fff}
+input.t{flex:1;background:#0a0b0d;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px;font:inherit}
+.ok{color:var(--ok)}.dim{color:var(--dim)}.faint{color:var(--faint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12px;margin:8px 0}
+.kv span:nth-child(odd){color:var(--dim)}
+.radio{display:flex;flex-direction:column;gap:6px;margin:6px 0 4px}
+.radio label{display:flex;gap:8px;align-items:flex-start;line-height:1.6}
+.rec{font-size:10px;color:var(--ok);border:1px solid var(--ok);border-radius:3px;padding:0 4px;margin-left:4px}
+/* ライブラリ */
+.lib{display:grid;grid-template-columns:240px 1fr;gap:10px;padding:10px 12px;height:520px}
+.tree,.tbl{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:auto}
+.tree .row{padding:6px 12px;color:var(--dim);display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
+.tree .row span{color:var(--faint);font-family:var(--mono);font-size:11px}
+.tree .row.on{background:#22262c;color:var(--text)}
+.tree .row.fold{padding-left:12px;color:var(--faint);font-size:11px}
+.tree .row.sub{padding-left:26px}
+.mode{display:flex;margin:8px;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.mode b{flex:1;text-align:center;font-weight:400;font-size:11px;padding:5px 0;color:var(--dim)}.mode b.on{background:#2a2e35;color:var(--text)}
+.search{padding:8px;border-bottom:1px solid var(--line)}
+.search input{width:100%;background:#0a0b0d;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px;font:inherit}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:#1b1e23;color:var(--dim);font-weight:500;font-size:11px;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid #1e2126;white-space:nowrap}td.n{font-family:var(--mono);text-align:right}
+.st{color:#fbbf24;letter-spacing:1px}.st.it{color:var(--it)}.st i{color:#3a3f47;font-style:normal}
+.chips{display:flex;gap:6px;align-items:center;margin:0 0 6px;font-size:12px}
+.chip{padding:3px 10px;border:1px solid #3a3f47;border-radius:12px;background:#1b1e23}
+.itb{font-size:10px;color:var(--it);border:1px solid var(--it);border-radius:3px;padding:0 4px}
+/* おまかせ */
+.auto{display:grid;grid-template-columns:420px 1fr;gap:12px;padding:12px}
+.lbl{font-size:11px;color:var(--dim);letter-spacing:.1em;margin:12px 0 6px}
+.seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;width:max-content}
+.seg div{padding:6px 12px;font-size:12px;color:var(--dim)}.seg div.on{background:#2a2e35;color:var(--text)}
+.gch{display:flex;flex-wrap:wrap;gap:6px}
+.gch div{padding:5px 10px;border:1px solid var(--line);border-radius:14px;font-size:12px;color:var(--dim)}
+.gch div.on{border-color:var(--deck-a);color:var(--text)}.gch small{color:var(--faint);margin-left:6px}
+.pl{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}
+.pl label{display:flex;gap:8px;align-items:center;padding:5px 8px;border:1px solid var(--line);border-radius:4px}
+.pl label.on{border-color:var(--it)}.pl small{margin-left:auto;color:var(--faint);font-family:var(--mono)}
+.res{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 16px}
+</style></head><body><div class="wrap">
+<h1>Phase 5 案E: iTunes の情報の取り込み</h1>
+<p class="sub">iTunes の「ライブラリ XML」を<b>読むだけ</b>で、★・再生回数・最後に再生した日・プレイリストをアプリに取り込みます。iTunes 側の情報も、音楽ファイルのタグも変えません。<br>
+下の 3 つの画面を切り替えて見てください（見た目の案。操作はしません）。</p>
+<div class="switch"><div class="on" data-s="set">① 設定: iTunes との連携</div><div data-s="lib">② ライブラリ: プレイリスト・iTunes の ★</div><div data-s="auto">③ おまかせ: プレイリストから選ぶ</div></div>
+
+<!-- ① 設定 -->
+<div class="scr on" id="set"><div class="frame">
+<div class="tabs"><div>デッキ</div><div>ライブラリ</div><div>つなぎ目</div><div>おまかせ</div><div>ミックス</div><div class="on">設定</div></div>
+<div class="settings">
+<section><h3>iTunes との連携</h3>
+  <div class="srow"><label>ライブラリ XML</label><input class="t" value="C:\Users\（ユーザー名）\Music\iTunes\iTunes Music Library.xml"><div class="btn">ファイルを選ぶ…</div></div>
+  <div class="kv"><span>状態</span><span class="ok">読み込み済み（10:02。iTunes で変わると自動で読み直します）</span>
+    <span>曲</span><span>10,647 曲中 10,631 曲が対応（16 曲はライブラリに無いファイル）</span>
+    <span>★</span><span>2,318 曲</span><span>再生回数</span><span>6,904 曲（最後に再生した日つき）</span><span>プレイリスト</span><span>42 本（スマートプレイリスト 9 本を含む）</span></div>
+  <div class="lbl">★ の扱い</div>
+  <div class="radio">
+    <label><input type="radio" name="r" checked> <span>アプリで付けた ★ を優先し、付けていない曲は iTunes の ★ を使う<span class="rec">おすすめ</span><br><span class="faint">iTunes の ★ はピンクで表示。アプリで ★ を付け直すとそちらが使われます</span></span></label>
+    <label><input type="radio" name="r"> <span>iTunes の ★ を使わない（再生回数とプレイリストだけ取り込む）</span></label>
+  </div>
+  <div class="srow"><div class="btn primary">今すぐ読み込む</div><div class="btn">連携をやめる</div></div>
+</section>
+<section><h3>XML が見つからないとき（今の状態）</h3>
+  <p class="dim" style="line-height:1.9">iTunes が他のアプリ向けの XML を書き出していません。iTunes で次の設定を入れると、自動で見つけます。<br>
+  <b style="color:var(--text)">iTunes → 編集 → 環境設定 → 詳細 →「iTunes ライブラリ XML をほかのアプリケーションと共有」にチェック</b><br>
+  入れた後、iTunes で何か 1 曲再生するか ★ を付けると XML が書き出されます。</p>
+  <div class="kv"><span>状態</span><span style="color:var(--warn)">XML が見つかりません（C:\Users\（ユーザー名）\Music\iTunes\iTunes Music Library.xml）</span></div>
+</section>
+</div></div>
+<div class="note"><b>決めたいこと</b>: ★ の扱い（おすすめ: アプリの ★ を優先し、無い曲は iTunes の ★）。「最後に再生した日」は iTunes とアプリの新しいほうを使い、おまかせの「最近かけた曲は避ける」に効かせます。再生回数はおまかせの「よく聴く曲を少し優先」に使えます（入れるかどうかは設計で）。</div>
+</div>
+
+<!-- ② ライブラリ -->
+<div class="scr" id="lib"><div class="frame">
+<div class="tabs"><div>デッキ</div><div class="on">ライブラリ</div><div>つなぎ目</div><div>おまかせ</div><div>ミックス</div><div>設定</div></div>
+<div class="lib">
+<div class="tree">
+  <div class="search"><input placeholder="検索（曲名・アーティスト・アルバム）"></div>
+  <div class="row">すべての曲 <span>10,647</span></div><div class="row">解析済み <span>10,641</span></div>
+  <div class="mode"><b>フォルダ</b><b>アーティスト</b><b>アルバム</b><b class="on">プレイリスト</b></div>
+  <div class="row fold">📁 Fusion</div>
+  <div class="row sub on">Friday Night Fusion <span>48</span></div>
+  <div class="row sub">Casiopea Best <span>62</span></div>
+  <div class="row sub">T-SQUARE 80s <span>35</span></div>
+  <div class="row fold">📁 Jazz</div>
+  <div class="row sub">Blue Note Classics <span>120</span></div>
+  <div class="row sub">Miles <span>57</span></div>
+  <div class="row">⚙ よく聴く曲（スマート） <span>25</span></div>
+  <div class="row">⚙ ★4 以上（スマート） <span>410</span></div>
+  <div class="row">City Pop Drive <span>73</span></div>
+  <div class="row">山下達郎 Live <span>31</span></div>
+</div>
+<div>
+  <div class="chips"><span class="dim" style="font-family:var(--mono)">48 曲</span><span class="chip">プレイリスト: Friday Night Fusion ✕</span>
+    <span class="dim">並びはプレイリストの順（見出しで並べ替えも可）</span><span style="flex:1"></span><div class="btn">このプレイリストをキューに入れる</div><div class="btn">おまかせで並べる</div></div>
+  <div class="tbl" style="height:470px"><table>
+  <tr><th>#</th><th>曲名</th><th>アーティスト</th><th>アルバム</th><th>長さ</th><th>BPM</th><th>キー</th><th>★</th><th>再生回数</th><th>最後にかけた日</th></tr>
+  <tr><td class="n">1</td><td>Asayake</td><td>CASIOPEA</td><td>Super Flight</td><td class="n">5:20</td><td class="n">113.1</td><td class="n">1B</td><td><span class="st">★★★★★</span></td><td class="n">87</td><td class="n">9/28</td></tr>
+  <tr><td class="n">2</td><td>Truth</td><td>T-SQUARE</td><td>Truth</td><td class="n">4:46</td><td class="n">121.0</td><td class="n">8A</td><td><span class="st it" title="iTunes の ★">★★★★<i>★</i></span></td><td class="n">64</td><td class="n">9/12 <span class="itb">iTunes</span></td></tr>
+  <tr><td class="n">3</td><td>Looking Up</td><td>CASIOPEA</td><td>Mint Jams</td><td class="n">5:02</td><td class="n">179.1</td><td class="n">4B</td><td><span class="st it">★★★★<i>★</i></span></td><td class="n">41</td><td class="n">8/30 <span class="itb">iTunes</span></td></tr>
+  <tr><td class="n">4</td><td>Spanish Key</td><td>Miles Davis</td><td>Bitches Brew</td><td class="n">17:34</td><td class="n">127.8</td><td class="n">10A</td><td><span class="st">★★★<i>★★</i></span></td><td class="n">12</td><td class="n">今日</td></tr>
+  <tr><td class="n">5</td><td>Omens of Love</td><td>T-SQUARE</td><td>R・E・S・O・R・T</td><td class="n">4:37</td><td class="n">134.2</td><td class="n">9B</td><td><span class="st it">★★★★★</span></td><td class="n">102</td><td class="n">9/20 <span class="itb">iTunes</span></td></tr>
+  <tr><td class="n">6</td><td>Fightman</td><td>CASIOPEA</td><td>Mint Jams</td><td class="n">5:48</td><td class="n">136.5</td><td class="n">3A</td><td><span class="st"><i>★★★★★</i></span></td><td class="n">—</td><td class="n">—</td></tr>
+  <tr><td class="n">7</td><td>Magic Ray</td><td>CASIOPEA</td><td>Mint Jams</td><td class="n">4:58</td><td class="n">128.0</td><td class="n">6B</td><td><span class="st it">★★★<i>★★</i></span></td><td class="n">33</td><td class="n">7/2 <span class="itb">iTunes</span></td></tr>
+  </table></div>
+</div></div></div>
+<div class="note"><b>見え方</b>: 左の一覧に 4 つ目「プレイリスト」（iTunes のフォルダの形のまま、⚙ はスマートプレイリスト）。選ぶとプレイリストの順に並び、「キューに入れる」「おまかせで並べる」。
+★ は <span style="color:#fbbf24">黄色＝アプリで付けた</span>／<span style="color:var(--it)">ピンク＝iTunes から</span>。列に「再生回数」を追加。「最後にかけた日」は新しいほう（iTunes のときは印）。</div>
+</div>
+
+<!-- ③ おまかせ -->
+<div class="scr" id="auto"><div class="frame">
+<div class="tabs"><div>デッキ</div><div>ライブラリ</div><div>つなぎ目</div><div class="on">おまかせ</div><div>ミックス</div><div>設定</div></div>
+<div class="auto">
+<section>
+  <div class="lbl" style="margin-top:0">出発点</div>
+  <div class="seg"><div class="on">ライブラリから選んで作る</div><div>キューの曲を並べ替える</div></div>
+  <div class="lbl">選ぶ範囲</div>
+  <div class="seg" style="margin-bottom:8px"><div>ジャンルのまとまり</div><div class="on">プレイリスト</div></div>
+  <div class="pl">
+    <label class="on"><input type="checkbox" checked> Friday Night Fusion <small>48 曲</small></label>
+    <label class="on"><input type="checkbox" checked> Casiopea Best <small>62 曲</small></label>
+    <label><input type="checkbox"> T-SQUARE 80s <small>35 曲</small></label>
+    <label><input type="checkbox"> ⚙ ★4 以上（スマート） <small>410 曲</small></label>
+    <label><input type="checkbox"> City Pop Drive <small>73 曲</small></label>
+    <label><input type="checkbox"> Blue Note Classics <small>120 曲</small></label>
+  </div>
+  <p class="dim" style="margin:8px 0 0">2 本・重なりを除いて 101 曲（解析済み 101）</p>
+  <div class="lbl">長さ</div><div class="seg"><div>20分</div><div class="on">40分</div><div>60分</div><div>90分</div></div>
+  <div class="lbl">好み</div>
+  <label class="dim" style="display:block;line-height:1.9"><input type="checkbox" checked> ★ の多い曲を優先（iTunes の ★ も使う）<br>
+  <input type="checkbox" checked> 最近 14 日にかけた曲は避ける（iTunes での再生も含む）<br>
+  <input type="checkbox"> よく聴く曲を少し優先（再生回数）</label>
+  <div style="margin-top:12px"><div class="btn primary">おまかせで作る</div></div>
+</section>
+<div class="res"><div class="lbl" style="margin-top:0">結果（今と同じ。3 案・曲ごとの理由・流れの図）</div>
+<p class="dim">選ぶ範囲がプレイリストになるだけで、並べ方・繋ぎ方・結果の見え方は Phase 3〜4 と同じです。</p></div>
+</div></div>
+<div class="note"><b>見え方</b>: おまかせの「選ぶ範囲」を「ジャンルのまとまり／プレイリスト」で切り替え。複数のプレイリストを合わせて使えます。好みの「最近かけた曲は避ける」は iTunes での再生も数えます。</div>
+</div>
+
+</div>
+<script>
+document.querySelectorAll('.switch div').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.switch div').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.scr').forEach(x => x.classList.toggle('on', x.id === b.dataset.s));
+}));
+</script>
+</body></html>

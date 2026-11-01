@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 3 案Y 次の曲を選んでいく</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.yhead{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.yhead b{font-size:15px}
+.yhead .sp{flex:1}
+.yhead .btn{height:32px;min-width:0;font-size:12px}
+.cand .row{display:flex;gap:8px;align-items:center}
+.cand .row .btn{height:30px;min-width:0;font-size:12px}
+.en{font-family:var(--mono);font-size:12px}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案Y 次の曲を選んでいく</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 候補群 259 曲の実際の解析と、試作の相性の計算</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab">つなぎ目</div><div class="tab on">おまかせ</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div id="an"></div>
+        <div class="p2card">
+          <div class="yhead"><b>いまの並び</b><span class="lbl2" id="sum"></span><div class="sp"></div>
+            <div class="btn" id="undo">↶ 1曲戻す</div><div class="btn" id="reset">最初からやり直す</div></div>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="p2card">
+          <div class="yhead"><b id="ctitle"></b><div class="sp"></div>
+            <span class="lbl2">並べ方</span><div class="seg2" id="sort"><div class="on" data-s="score">相性の良い順</div><div data-s="up">盛り上げる曲を先に</div><div data-s="down">落ち着かせる曲を先に</div></div></div>
+          <div class="lbl2" style="margin-bottom:8px">カードをクリックすると並びに加わります。棒は相性の内訳（テンポ・キー・繋ぐ部分の響き・音の雰囲気）。</div>
+          <div class="cands" id="cands"></div>
+        </div>
+        <div class="p2card">
+          <div class="lbl2" style="margin-bottom:6px">ミックス全体</div>
+          <canvas class="tlc" id="tl" style="height:230px"></canvas>
+        </div>
+        <div class="acts">
+          <div class="btn primary" id="auto">残りをおまかせ（40 分まで）</div>
+          <div class="btn" id="toq">この並びをキューに入れる</div>
+        </div>
+      </div>
+    </div>
+    <aside class="queue" id="queue"></aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { D, T, C, esc, fmt, TPL, TPL_BARS, drawTimeline, partsHTML, scoreColor, renderQueue, analysisBar, layout } = P3;
+let seq = [{ id: D.seed }], sort = 'score';
+renderQueue(document.getElementById('queue'), D.plans.queue[1].tracks);
+analysisBar(document.getElementById('an'));
+
+const used = () => new Set(seq.map(r => r.id));
+function candidates() {
+  const last = seq[seq.length - 1], u = used();
+  let cs = (D.nexts[last.id] ?? []).filter(c => !u.has(c.id));
+  if (sort === 'up') cs = [...cs].sort((a, b) => T[b.id].energy - T[a.id].energy);
+  if (sort === 'down') cs = [...cs].sort((a, b) => T[a.id].energy - T[b.id].energy);
+  return cs;
+}
+function add(c) {
+  seq[seq.length - 1].join = { tpl: c.tpl, score: c.score, why: c.why, tempo: c.tempo, key: c.key, chroma: c.chroma, mood: c.mood };
+  seq.push({ id: c.id });
+  render();
+}
+function render() {
+  const L = layout(seq), total = L[L.length - 1].start + L[L.length - 1].len;
+  document.getElementById('sum').textContent = `${seq.length}曲 ・ 約${Math.round(total / 60)}分`;
+  document.getElementById('strip').innerHTML = seq.map((r, i) => {
+    const t = T[r.id];
+    return `<div class="schip ${i === seq.length - 1 ? 'last' : ''}"><b>${i + 1}. ${esc(t.title)}</b><span>${t.bpm.toFixed(0)} BPM ・ ${t.camelot}</span></div>` +
+      (r.join ? `<div class="sarr" style="color:${scoreColor(r.join.score)}">→<br>${r.join.score.toFixed(2)}</div>` : '');
+  }).join('');
+  const last = T[seq[seq.length - 1].id];
+  document.getElementById('ctitle').textContent = `「${last.title}」の次の曲の候補`;
+  const cs = candidates();
+  document.getElementById('cands').innerHTML = cs.length ? cs.map((c, i) => {
+    const t = T[c.id], de = t.energy - last.energy;
+    return `<div class="cand" data-i="${i}"><div class="h"><b>${esc(t.title)}</b><span>${esc((t.artist ?? '').slice(0, 30))}</span>
+        <span class="sc" style="color:${scoreColor(c.score)}">${c.score.toFixed(2)}</span></div>
+      <div class="row"><span class="en">${t.bpm.toFixed(1)} BPM ・ ${t.camelot} ・ <span style="color:${de > 0.05 ? '#fb923c' : de < -0.05 ? '#2dd4bf' : 'var(--dim)'}">${de > 0.05 ? '▲ 盛り上がる' : de < -0.05 ? '▼ 落ち着く' : '― 同じくらい'}</span></span>
+        <div class="sp" style="flex:1"></div><span class="lbl2">${TPL[c.tpl]}</span><div class="btn" data-pv>▶ つなぎ目を試聴</div></div>
+      ${partsHTML(c)}<div class="w">${esc(c.why.join(' ／ '))}</div></div>`;
+  }).join('') : '<div class="jempty">候補がありません（モックアップの候補群の範囲外）</div>';
+  document.querySelectorAll('.cand').forEach(el => el.addEventListener('click', e => {
+    if (e.target.closest('[data-pv]')) { e.target.textContent = '（試聴中…）'; return; }
+    add(cs[+el.dataset.i]);
+  }));
+  drawTimeline(document.getElementById('tl'), seq, { minutes: 40 });
+}
+document.getElementById('sort').addEventListener('click', e => {
+  const s = e.target.closest('[data-s]'); if (!s) return;
+  sort = s.dataset.s; document.querySelectorAll('#sort div').forEach(x => x.classList.toggle('on', x === s)); render();
+});
+document.getElementById('undo').addEventListener('click', () => { if (seq.length > 1) { seq.pop(); delete seq[seq.length - 1].join; render(); } });
+document.getElementById('reset').addEventListener('click', () => { seq = [{ id: D.seed }]; render(); });
+document.getElementById('auto').addEventListener('click', () => {
+  // 残りをおまかせ: 相性の一番良い候補を順に（本番は案X と同じ探索を使う）
+  for (let k = 0; k < 30; k++) {
+    const L = layout(seq), total = L[L.length - 1].start + L[L.length - 1].len;
+    if (total >= 40 * 60) break;
+    const sv = sort; sort = 'score'; const c = candidates()[0]; sort = sv;
+    if (!c) break;
+    seq[seq.length - 1].join = { tpl: c.tpl, score: c.score, why: c.why, tempo: c.tempo, key: c.key, chroma: c.chroma, mood: c.mood };
+    seq.push({ id: c.id });
+  }
+  render();
+});
+document.getElementById('toq').addEventListener('click', () => renderQueue(document.getElementById('queue'), seq, 'この並びをキューに入れました。つなぎ目タブで直せます'));
+addEventListener('resize', render);
+render();
+</script>
+</body></html>

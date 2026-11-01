@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 4 案D2 キューの引き出し</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.queue{position:relative}
+.qhead .dd{cursor:pointer;color:#fb923c;font-size:12px;border:1px solid #7c3f14;border-radius:4px;padding:3px 8px}
+.dmix{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:8px;border:1px solid var(--line);border-radius:6px;background:#0f1114;font-size:12px}
+.dmix b{font-size:13px}.dmix .acts2{display:flex;gap:4px}.dmix .acts2 .btn{height:26px;min-width:0;font-size:11px;padding:0 8px}
+table.lib{width:100%;border-collapse:collapse;font-size:13px}
+table.lib td,table.lib th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.lib th{color:var(--dim);font-weight:500;font-size:12px}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案D2 キューの引き出し</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab on">ライブラリ</div><div class="tab">つなぎ目</div><div class="tab">おまかせ</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div class="p2card"><div class="p2title"><b>ライブラリ</b><span>★ の列を追加。クリックで評価（1〜5、同じ★をもう一度で消す）。「最後にかけた日」も見えます</span></div>
+          <table class="lib" id="lib" style="margin-top:8px"></table></div>
+        <div class="p2card"><div class="p2title"><b>おまかせの条件に追加</b></div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <label class="opt"><input type="checkbox" checked> ★ の多い曲を優先する</label>
+            <label class="opt"><input type="checkbox" checked> ★1 の曲は使わない</label>
+            <label class="opt"><input type="checkbox" checked> 最近 <select><option>7</option><option selected>14</option><option>30</option></select> 日にかけた曲は避ける</label>
+          </div></div>
+      </div>
+    </div>
+    <aside class="queue" id="queue">
+      <div class="qhead"><h3>ミックスキュー <small>4曲 ・ 約28分</small></h3><div class="qtools"><span class="dd" id="dd">保存したミックス（4）▾</span></div></div>
+      <div class="drawer" id="drawer" hidden></div>
+      <div class="qlist" id="qlist"></div>
+    </aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const LIB = [
+  ["LET'S DANCE BABY", '山下達郎', 117.5, '6B', 5, '9/29'], ['CIRCUS TOWN', '山下達郎', 92.1, '8A', 4, '9/29'], ['潮騒', '山下達郎', 96.0, '9A', 5, '9/29'],
+  ['YELLOW CAB', '山下達郎', 124.0, '7B', 3, '9/29'], ['Asayake', 'Casiopea', 113.1, '1B', 5, '9/30'], ['Night storm', 'CASIOPEA', 119.2, '10B', 3, '9/30'],
+  ['Magic Ray', 'CASIOPEA', 137.1, '11B', 0, '—'], ['Room 335', 'Larry Carlton', 128.1, '11B', 4, '9/28'], ['Sequencer', 'Al Di Meola', 121.0, '4B', 1, '9/30'],
+];
+const MIXES = [['2026-09-30 おまかせ（上げていく）', '8曲・41分・9/30', 'おまかせ', '⤓ MP3'], ['山下達郎 夜のドライブ', '4曲・28分・9/29', '手で作った', ''],
+  ['Casiopea 朝のテーマ', '4曲・22分・9/29', '手で作った', '⤓ WAV'], ['2026-09-28 おまかせ（キープ）', '3曲・44分・9/28', 'おまかせ', '']];
+const stars = (n, i) => `<span class="stars" data-i="${i}">${[1, 2, 3, 4, 5].map(k => `<b class="${k <= n ? 'on' : ''}" data-k="${k}">★</b>`).join('')}</span>`;
+function render() {
+  document.getElementById('lib').innerHTML = '<tr><th>曲名</th><th>アーティスト</th><th>BPM</th><th>キー</th><th>★</th><th>最後にかけた日</th></tr>' +
+    LIB.map((r, i) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="hist">${r[2].toFixed(1)}</td><td class="hist">${r[3]}</td><td>${stars(r[4], i)}</td><td class="hist">${r[5]}</td></tr>`).join('');
+  document.getElementById('qlist').innerHTML = LIB.slice(0, 4).map((r, i) => `<div class="qi"><div class="bar"></div><div class="no">${i + 1}</div><div><div class="t1">${r[0]}</div><div class="t2">${r[1]} ・ ${stars(r[4], i)}</div></div><div class="meta">${r[2].toFixed(1)} <span>BPM</span><br>${r[3]}</div></div>`).join('');
+  document.getElementById('drawer').innerHTML = `<div class="lbl2">保存したミックス（保存・おまかせ・書き出しのたびに自動で残る）</div>` + MIXES.map(m => `<div class="dmix"><div><b>${m[0]}</b><br><span class="hist">${m[1]}</span> <span class="tag ${m[2] === 'おまかせ' ? 'auto' : ''}">${m[2]}</span> <span class="hist">${m[3]}</span></div>
+    <div class="acts2"><span class="btn">開く</span><span class="btn">▶</span><span class="btn">⤓</span><span class="btn">…</span></div></div>`).join('');
+}
+document.getElementById('dd').addEventListener('click', () => { const d = document.getElementById('drawer'); d.hidden = !d.hidden; });
+document.addEventListener('click', e => { const s = e.target.closest('.stars b'); if (!s) return; const r = LIB[+s.parentElement.dataset.i]; const k = +s.dataset.k; r[4] = r[4] === k ? 0 : k; render(); });
+render();
+</script>
+</body></html>

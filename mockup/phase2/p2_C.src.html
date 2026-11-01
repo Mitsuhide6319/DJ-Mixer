@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 2 案C ミックス全体のタイムライン</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.tlwrap{overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:4px;background:#050607}
+.tlwrap canvas{display:block}
+.zoom{display:flex;align-items:center;gap:10px}
+.zoom input{width:220px}
+.detail{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip2{padding:6px 10px;border-radius:4px;font-size:12px;color:#0b0c0e;cursor:pointer;border:1px solid rgba(255,255,255,.15)}
+.chip2.sel{outline:2px solid #fff;outline-offset:-2px}
+.chip2 small{font-family:var(--mono);opacity:.75;margin-left:6px}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案C ミックス全体のタイムライン</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 波形・小節・区間の候補は実際の解析データ</div></div>
+  <div class="p2main noqueue">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab on">つなぎ目</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div class="p2card p2title">
+          <b>ミックス全体</b><span id="sum"></span><div class="sp"></div>
+          <div class="zoom"><span class="lbl2">拡大</span><input type="range" id="zoomr" min="1" max="8" step="0.25" value="1"><span class="lbl2" id="zoomv"></span></div>
+          <div class="btn" style="height:34px;min-width:0">▶ 選んだ位置から試聴</div>
+        </div>
+        <div class="p2card">
+          <div class="lbl2" style="margin-bottom:6px">曲の帯の両端をつまんで、使う範囲を縮めます（小節に吸着）。隣の帯と重なっている所（緑）が繋ぎです。帯をクリックすると下に詳細が出ます。</div>
+          <div class="tlwrap" id="wrap"><canvas id="tl"></canvas></div>
+        </div>
+        <div class="p2card detail" id="detail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { T, C, SEC_COLOR, secKind, fmt, snap, fitCanvas, drawWave, barsBetween, uiScale } = P2;
+const OVL = T.map(() => 16);          // i と i+1 の重なり（小節）
+let selected = 1, zoom = 1;
+T[0].use = { t0: T[0].sections[1].t0, t1: T[0].sections[4].t0 };
+T[3].use = { t0: T[3].sections[0].t0, t1: T[3].sections[Math.min(3, T[3].sections.length - 1)].t1 };
+
+// 各曲の、ミックス上での開始時刻（前の曲の使う範囲の終わりから、重なりの秒数だけ前）
+function layout() {
+  const L = [];
+  let t = 0;
+  T.forEach((tr, i) => {
+    const len = tr.use.t1 - tr.use.t0;
+    if (i > 0) {
+      const prev = T[i - 1], ov = OVL[i - 1] * 60 / prev.bpm * prev.meter;
+      t = L[i - 1].start + L[i - 1].len - Math.min(ov, len * 0.5, L[i - 1].len * 0.5);
+    }
+    L.push({ start: t, len });
+  });
+  return L;
+}
+
+function draw() {
+  const L = layout(), total = L.at(-1).start + L.at(-1).len;
+  const wrap = document.getElementById('wrap'), cv = document.getElementById('tl');
+  const baseW = wrap.clientWidth;
+  cv.style.width = `${baseW * zoom}px`;
+  cv.style.height = '420px';
+  const [g, W, H, d] = fitCanvas(cv);
+  const pps = W / total, ruler = 24 * d, laneH = 120 * d, gap = 10 * d, yLane = [ruler + 6 * d, ruler + 6 * d + laneH + gap];
+  const yEnergy = yLane[1] + laneH + 22 * d, eH = H - yEnergy - 8 * d;
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  // 目盛り（分）
+  g.font = `${11 * d}px Consolas`;
+  for (let s = 0; s <= total; s += 30) {
+    const x = Math.round(s * pps);
+    g.fillStyle = s % 60 === 0 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.12)'; g.fillRect(x, ruler - 6 * d, d, H - ruler);
+    if (s % 60 === 0) { g.fillStyle = C['--dim']; g.fillText(fmt(s, 0), x + 3 * d, 14 * d); }
+  }
+  // 曲の帯（上下の段に交互に置く）
+  T.forEach((tr, i) => {
+    const x0 = L[i].start * pps, x1 = (L[i].start + L[i].len) * pps, y = yLane[i % 2];
+    g.fillStyle = i === selected ? '#20242b' : '#15171b'; g.fillRect(x0, y, x1 - x0, laneH);
+    drawWave(g, tr, tr.use.t0, tr.use.t1, x0, x1, y + 20 * d, laneH - 24 * d, 0.95);
+    g.strokeStyle = i === selected ? '#ffffff' : (i % 2 ? C['--deck-b'] : C['--deck-a']);
+    g.lineWidth = (i === selected ? 2 : 1.5) * d; g.strokeRect(x0 + d, y + d, x1 - x0 - 2 * d, laneH - 2 * d);
+    g.fillStyle = '#e8e8e8'; g.font = `${12 * d}px "Yu Gothic UI"`;
+    g.fillText(`${i + 1}. ${tr.title}`, x0 + 8 * d, y + 15 * d);
+    // 取っ手
+    for (const x of [x0, x1]) { g.fillStyle = '#ffffff'; g.fillRect(Math.round(x - 3 * d), y + laneH / 2 - 16 * d, 6 * d, 32 * d); }
+  });
+  // 重なり
+  for (let i = 0; i < T.length - 1; i++) {
+    const x0 = L[i + 1].start * pps, x1 = (L[i].start + L[i].len) * pps;
+    g.fillStyle = 'rgba(34,197,94,.28)'; g.fillRect(x0, yLane[0], x1 - x0, laneH * 2 + gap);
+    g.strokeStyle = 'rgba(34,197,94,.9)'; g.lineWidth = 1.5 * d;
+    g.beginPath(); g.moveTo(x0, yLane[(i) % 2] + 4 * d); g.lineTo(x1, yLane[(i) % 2] + laneH - 4 * d); g.stroke();       // 前の曲がフェードアウト
+    g.beginPath(); g.moveTo(x0, yLane[(i + 1) % 2] + laneH - 4 * d); g.lineTo(x1, yLane[(i + 1) % 2] + 4 * d); g.stroke();  // 次の曲がフェードイン
+    g.fillStyle = '#e8e8e8'; g.font = `${10 * d}px "Yu Gothic UI"`;
+    g.fillText(`${OVL[i]}小節`, x0 + 3 * d, yLane[1] - 1 * d);
+  }
+  // 盛り上がりの流れ（各曲の音量の包絡をミックスの時間軸に並べる）
+  g.fillStyle = C['--dim']; g.font = `${11 * d}px "Yu Gothic UI"`; g.fillText('盛り上がりの流れ', 6 * d, yEnergy - 6 * d);
+  g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(0, yEnergy, W, eH);
+  // 4 秒ごとの平均音量を求め、全曲の中の最小〜最大で縦に広げる（曲どうしの相対的な盛り上がりが分かるように）
+  const series = T.map((tr, i) => {
+    const pts = [], step = 4;
+    for (let s = 0; s < L[i].len; s += step) {
+      // 曲の終わり際で波形の範囲外を読まない（NaN が混じると全体の正規化が壊れて何も描けなくなる）
+      const a = Math.floor((tr.use.t0 + s) * tr.wave.rate), b = Math.min(tr.wave.low.length, Math.floor((tr.use.t0 + s + step) * tr.wave.rate));
+      if (b <= a) continue;
+      let e = 0; for (let k = a; k < b; k++) e += tr.wave.low[k] * 0.6 + tr.wave.mid[k] * 0.4;
+      pts.push([(L[i].start + s + step / 2) * pps, e / (b - a)]);
+    }
+    return pts;
+  });
+  const all = series.flat().map(p => p[1]), lo = Math.min(...all), hi = Math.max(...all);
+  series.forEach((pts, i) => {
+    g.strokeStyle = i % 2 ? C['--deck-b'] : C['--deck-a']; g.lineWidth = 2.5 * d; g.beginPath();
+    pts.forEach(([x, e], k) => { const y = yEnergy + eH - 6 * d - (e - lo) / (hi - lo + 1e-9) * (eH - 12 * d); k ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+  });
+  cv._L = L; cv._pps = pps / d; cv._lanes = { yLane: yLane.map(v => v / d), laneH: laneH / d };
+  document.getElementById('sum').textContent = `${T.length}曲 ・ ミックスの長さ ${fmt(total, 0)}`;
+  document.getElementById('zoomv').textContent = `×${zoom}`;
+}
+
+function renderDetail() {
+  const tr = T[selected], el = document.getElementById('detail');
+  el.innerHTML = `<div><div class="p2title"><b>${selected + 1}. ${tr.title}</b><span>${tr.artist} ・ ${tr.bpm.toFixed(1)} BPM ・ ${tr.camelot}</span></div>
+      <div class="selbar" style="margin-top:8px"><div><div class="lbl2">使う範囲</div><div class="big">${fmt(tr.use.t0)} – ${fmt(tr.use.t1)}</div></div>
+      <div class="len" style="font-family:var(--mono);color:var(--dim)">${fmt(tr.use.t1 - tr.use.t0)} ・ ${barsBetween(tr, tr.use.t0, tr.use.t1)} 小節</div></div>
+      <div class="lbl2" style="margin-top:10px">区間の候補（クリックで選択、Shift＋クリックで広げる）</div>
+      <div class="chips">${tr.sections.map((s, i) => {
+        const k = secKind(s), inside = s.t0 >= tr.use.t0 - 0.05 && s.t1 <= tr.use.t1 + 0.05;
+        return `<div class="chip2 ${inside ? 'sel' : ''}" data-s="${i}" style="background:${SEC_COLOR[k]}">${s.tags.join('・')}<small>${fmt(s.t0, 0)}〜 ${s.bars}小節</small></div>`;
+      }).join('')}</div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:280px">
+      ${selected > 0 ? `<div><div class="lbl2">前の曲との重なり</div><div class="seg2" data-j="${selected - 1}">${[8, 16, 32].map(v => `<div class="${OVL[selected - 1] === v ? 'on' : ''}" data-v="${v}">${v}小節</div>`).join('')}</div></div>` : ''}
+      ${selected < T.length - 1 ? `<div><div class="lbl2">次の曲との重なり</div><div class="seg2" data-j="${selected}">${[8, 16, 32].map(v => `<div class="${OVL[selected] === v ? 'on' : ''}" data-v="${v}">${v}小節</div>`).join('')}</div></div>` : ''}
+      <div class="btn" style="height:36px">▶ この曲の範囲の頭から試聴</div></div>`;
+  el.querySelectorAll('[data-s]').forEach(c => c.addEventListener('click', e => {
+    const s = tr.sections[+c.dataset.s];
+    tr.use = e.shiftKey ? { t0: Math.min(tr.use.t0, s.t0), t1: Math.max(tr.use.t1, s.t1) } : { t0: s.t0, t1: s.t1 };
+    renderAll();
+  }));
+  el.querySelectorAll('[data-j] [data-v]').forEach(c => c.addEventListener('click', () => {
+    OVL[+c.parentElement.dataset.j] = +c.dataset.v; renderAll();
+  }));
+}
+
+function renderAll() { draw(); renderDetail(); }
+
+// 帯のクリック（選択）と、端のドラッグ（使う範囲の伸縮）
+(() => {
+  const cv = document.getElementById('tl');
+  let drag = null;
+  const hit = ev => {
+    // 描画は画面上のピクセル基準（fitCanvas が zoom 込みの大きさで確保する）なので、マウス位置もそのまま使う
+    const r = cv.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    const { yLane, laneH } = cv._lanes, L = cv._L, pps = cv._pps;
+    for (let i = 0; i < T.length; i++) {
+      const y0 = yLane[i % 2];
+      if (y < y0 || y > y0 + laneH) continue;
+      const x0 = L[i].start * pps, x1 = (L[i].start + L[i].len) * pps;
+      if (Math.abs(x - x0) < 8) return { i, edge: 't0', x };
+      if (Math.abs(x - x1) < 8) return { i, edge: 't1', x };
+      if (x > x0 && x < x1) return { i, x };
+    }
+    return null;
+  };
+  cv.addEventListener('pointerdown', ev => {
+    const h = hit(ev);
+    if (!h) return;
+    selected = h.i;
+    if (h.edge) { cv.setPointerCapture(ev.pointerId); drag = { ...h, orig: { ...T[h.i].use } }; }
+    renderAll();
+  });
+  cv.addEventListener('pointermove', ev => {
+    const h = hit(ev);
+    cv.style.cursor = drag || h?.edge ? 'ew-resize' : h ? 'pointer' : 'default';
+    if (!drag) return;
+    const r = cv.getBoundingClientRect();
+    const x = ev.clientX - r.left;
+    const tr = T[drag.i], dt = (x - drag.x) / cv._pps;
+    if (drag.edge === 't0') tr.use.t0 = Math.max(0, Math.min(tr.use.t1 - 10, snap(tr, drag.orig.t0 + dt, 'bar')));
+    else tr.use.t1 = Math.min(tr.duration, Math.max(tr.use.t0 + 10, snap(tr, drag.orig.t1 + dt, 'bar')));
+    renderAll();
+  });
+  cv.addEventListener('pointerup', () => { drag = null; });
+})();
+document.getElementById('zoomr').addEventListener('input', e => { zoom = +e.target.value; draw(); });
+addEventListener('resize', renderAll);
+renderAll();
+</script>
+</body></html>

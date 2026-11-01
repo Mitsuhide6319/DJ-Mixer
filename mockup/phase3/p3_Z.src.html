@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 3 案Z 流れを描く</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.zgrid{display:grid;grid-template-columns:340px 1fr;gap:10px;align-items:start}
+.zbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.zbar .sp{flex:1}
+.zbar .btn{height:32px;min-width:0;font-size:12px}
+.mini{display:flex;flex-direction:column;gap:2px;font-size:12px}
+.mini div{display:grid;grid-template-columns:24px 1fr 70px 40px;gap:6px;padding:3px 6px}
+.mini span{color:var(--dim);font-family:var(--mono)}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案Z 流れを描く</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 描いた線に一番近い試作の結果を選んで表示します</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab">つなぎ目</div><div class="tab on">おまかせ</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div id="an"></div>
+        <div class="zgrid">
+          <div class="p2card cond">
+            <div><h4>起点の曲</h4><div class="seedbox" id="seed"></div></div>
+            <div><h4>選ぶ範囲</h4><div class="gchips" id="groups"></div></div>
+            <div><h4>長さ</h4><div class="seg2 big"><div>20分</div><div class="on">40分</div><div>60分</div><div>90分</div></div></div>
+            <div class="btn primary" id="go" style="height:44px">この流れで並べる</div>
+            <div class="lbl2" style="line-height:1.7">右の枠に、ミックスの盛り上がりの流れをマウスで描きます（左が始まり、上ほど盛り上がる）。描いた線に沿うように、曲の並びを探します。</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="p2card">
+              <div class="zbar"><b>流れを描く</b><span class="lbl2">ドラッグで描き直せます</span><div class="sp"></div>
+                <span class="lbl2">ひな形</span><div class="btn" data-pre="up">上げていく</div><div class="btn" data-pre="peak">山を作る</div><div class="btn" data-pre="wave">波を2回</div><div class="btn" data-pre="down">落ち着かせる</div></div>
+              <canvas class="drawc" id="draw"></canvas>
+            </div>
+            <div class="p2card" id="res" style="display:none">
+              <div class="zbar"><b>結果</b><span class="lbl2" id="rsum"></span><div class="sp"></div><div class="btn primary" id="toq">キューに入れる</div></div>
+              <canvas class="tlc" id="tl"></canvas>
+              <div class="mini" id="mini" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="queue" id="queue"></aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { D, T, C, esc, fmt, TPL, fitCanvas, drawTimeline, scoreColor, renderQueue, analysisBar, layout } = P3;
+const N = 41;                                        // 40 分を 1 分刻み
+let curve = Array.from({ length: N }, (_, k) => 0.5 + 0.3 * Math.sin(Math.PI * k / (N - 1)));
+let result = null;
+renderQueue(document.getElementById('queue'), D.plans.queue[1].tracks);
+analysisBar(document.getElementById('an'));
+const seed = T[D.seed];
+document.getElementById('seed').innerHTML = `<div><b>${esc(seed.title)}</b> <span>${esc(seed.artist)}</span></div><div class="sp" style="flex:1"></div><div class="btn" style="height:30px;min-width:0;font-size:12px">変更…</div>`;
+document.getElementById('groups').innerHTML = D.groups.slice(0, 6).map((g, i) => `<label class="gchip ${i === 0 ? 'on' : ''}"><input type="checkbox" ${i === 0 ? 'checked' : ''}>${g.name}</label>`).join('');
+document.querySelectorAll('#groups input').forEach(x => x.addEventListener('change', () => x.parentElement.classList.toggle('on', x.checked)));
+
+const cv = document.getElementById('draw');
+function drawCanvas() {
+  const [g, W, H, d] = fitCanvas(cv), pad = 30 * d;
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  const X = k => pad + k / (N - 1) * (W - 2 * pad), Y = e => H - pad - e * (H - 2 * pad);
+  g.font = `${10 * d}px Consolas`;
+  for (let m = 0; m <= 40; m += 5) { const x = Math.round(X(m)); g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(x, pad, d, H - 2 * pad); g.fillStyle = C['--faint']; g.fillText(`${m}分`, x - 8 * d, H - 10 * d); }
+  g.fillStyle = C['--dim']; g.font = `${11 * d}px "Yu Gothic UI"`;
+  g.fillText('盛り上がる', 4 * d, pad + 4 * d); g.fillText('静か', 4 * d, H - pad);
+  // 描いた線
+  g.strokeStyle = '#fb923c'; g.lineWidth = 3 * d; g.lineJoin = 'round'; g.beginPath();
+  curve.forEach((e, k) => k ? g.lineTo(X(k), Y(e)) : g.moveTo(X(k), Y(e))); g.stroke();
+  g.fillStyle = 'rgba(251,146,60,.12)'; g.beginPath(); g.moveTo(X(0), Y(0));
+  curve.forEach((e, k) => g.lineTo(X(k), Y(e))); g.lineTo(X(N - 1), Y(0)); g.closePath(); g.fill();
+  // 結果の曲の位置（実際のエネルギー）
+  if (result) {
+    const L = layout(result.tracks), total = 40 * 60;
+    L.forEach((l, i) => {
+      const x = pad + (l.start + l.len / 2) / total * (W - 2 * pad), y = Y(l.t.energy);
+      g.fillStyle = i % 2 ? C['--deck-b'] : C['--deck-a']; g.beginPath(); g.arc(x, y, 5 * d, 0, 7); g.fill();
+      g.fillStyle = '#e8e8e8'; g.font = `${10 * d}px "Yu Gothic UI"`; g.fillText(`${i + 1}`, x - 3 * d, y - 8 * d);
+    });
+  }
+  return { X, Y, pad, W, H, d };
+}
+let drawing = false, lastK = null;
+function paint(ev) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1, pad = 30;
+  const k = Math.round(Math.max(0, Math.min(1, (ev.clientX - r.left - pad) / (r.width - 2 * pad))) * (N - 1));
+  const e = Math.max(0, Math.min(1, 1 - (ev.clientY - r.top - pad) / (r.height - 2 * pad)));
+  if (lastK !== null && lastK !== k) { const [a, b] = lastK < k ? [lastK, k] : [k, lastK]; const ea = curve[lastK]; for (let j = a; j <= b; j++) curve[j] = ea + (e - ea) * (j - lastK) / (k - lastK); }
+  curve[k] = e; lastK = k; drawCanvas();
+}
+cv.addEventListener('pointerdown', ev => { drawing = true; lastK = null; cv.setPointerCapture(ev.pointerId); paint(ev); });
+cv.addEventListener('pointermove', ev => drawing && paint(ev));
+cv.addEventListener('pointerup', () => { drawing = false; lastK = null; });
+const PRE = { up: k => 0.35 + 0.5 * k, peak: k => 0.4 + 0.45 * Math.sin(Math.PI * k), wave: k => 0.5 + 0.25 * Math.sin(2 * Math.PI * k * 2 - Math.PI / 2) + 0.1 * k, down: k => 0.8 - 0.5 * k };
+document.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => { curve = curve.map((_, k) => PRE[b.dataset.pre](k / (N - 1))); drawCanvas(); }));
+
+// 描いた線に一番近い試作の結果を選ぶ（本番は線をそのまま目標にして探索する）
+function nearestPlan() {
+  let best = null;
+  for (const flow of ['up', 'keep', 'peak', 'down']) for (const p of D.plans[flow]) {
+    const L = layout(p.tracks), total = 40 * 60;
+    let err = 0;
+    L.forEach(l => { const k = Math.min(N - 1, Math.round((l.start + l.len / 2) / total * (N - 1))); err += (l.t.energy - curve[k]) ** 2; });
+    err = Math.sqrt(err / L.length);
+    if (!best || err < best.err) best = { p, err };
+  }
+  return best;
+}
+document.getElementById('go').addEventListener('click', () => {
+  const b = nearestPlan();
+  result = b.p;
+  document.getElementById('res').style.display = '';
+  document.getElementById('rsum').textContent = `${result.tracks.length}曲 ・ 約${Math.round(result.minutes)}分 ・ 平均の相性 ${result.score.toFixed(2)} ・ 描いた線とのずれ ${b.err.toFixed(2)}`;
+  drawTimeline(document.getElementById('tl'), result.tracks, { target: curve, minutes: 40 });
+  document.getElementById('mini').innerHTML = result.tracks.map((r, i) => { const t = T[r.id]; return `<div><span>${i + 1}</span><b style="font-weight:500">${esc(t.title)} <small style="color:var(--dim)">${esc((t.artist ?? '').slice(0, 30))}</small></b><span>${t.bpm.toFixed(1)}</span><span>${t.camelot}</span></div>`; }).join('');
+  drawCanvas();
+});
+document.getElementById('toq').addEventListener('click', () => renderQueue(document.getElementById('queue'), result.tracks, 'キューに入れました。つなぎ目タブで直せます'));
+addEventListener('resize', () => { drawCanvas(); if (result) drawTimeline(document.getElementById('tl'), result.tracks, { target: curve, minutes: 40 }); });
+drawCanvas();
+</script>
+</body></html>

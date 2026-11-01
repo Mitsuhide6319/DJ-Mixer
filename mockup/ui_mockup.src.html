@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>DJ Mixer — UI Mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- このファイルはソース。build_mockup.py で実データを埋め込んだ ../ui_mockup.html を生成する -->
+<style>
+:root{
+  --bg:#0b0c0e; --panel:#15171b; --panel2:#1b1e23; --line:#2a2e35;
+  --text:#e8e8e8; --dim:#8a9099; --faint:#50565f;
+  --deck-a:#22d3ee; --deck-b:#fb923c;
+  --wave-low:#2563eb; --wave-mid:#f59e0b; --wave-high:#f5f5f5;
+  --active:#ef4444; --ok:#22c55e; --warn:#eab308;
+  --mono:"Consolas","Cascadia Mono",monospace;
+  /* 操作系の寸法（ユーザー要望: ボタン1.5倍・ノブ2倍） */
+  --btn-h:45px; --btn-minw:66px; --btn-fs:13px;
+  --big:110px; --pad-w:84px; --pad-h:60px; --knob:76px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:"Yu Gothic UI","Segoe UI",sans-serif;font-size:13px;user-select:none;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100vh;min-width:1600px}
+/* ---- header ---- */
+.top{zoom:var(--u,1);height:32px;display:flex;align-items:center;gap:18px;padding:0 14px;border-bottom:1px solid var(--line);background:#08090a}
+.logo{font-weight:700;letter-spacing:.18em;font-size:12px}
+.logo b{color:var(--active)}
+.top .sp{flex:1}
+.stat{font-family:var(--mono);color:var(--dim);font-size:12px}
+.stat em{font-style:normal;color:var(--text)}
+/* ---- strip (固定高さ) ---- */
+.strip{border-bottom:1px solid var(--line);background:var(--panel)}
+.dinfo{zoom:var(--u,1);display:grid;grid-template-columns:34px 1fr auto auto auto auto;align-items:center;gap:14px;height:40px;padding:0 12px}
+.dl{width:26px;height:26px;border-radius:4px;display:grid;place-items:center;font-weight:800;color:#000}
+.a .dl{background:var(--deck-a)} .b .dl{background:var(--deck-b)}
+.ttl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttl b{font-size:15px;font-weight:600}.ttl span{color:var(--dim);margin-left:10px}
+.bpm{font-family:var(--mono);font-size:20px;width:150px;text-align:right}
+.bpm small{font-size:12px;color:var(--dim);margin-left:4px}
+.key{font-family:var(--mono);font-size:14px;width:40px;text-align:center;border:1px solid var(--line);border-radius:3px;padding:2px 0}
+.flags{display:flex;gap:6px;width:170px}
+.flag{font-size:10px;letter-spacing:.08em;padding:3px 6px;border-radius:3px;border:1px solid var(--line);color:var(--faint)}
+.flag.on{color:#fff;border-color:var(--active);background:rgba(239,68,68,.18)}
+.time{font-family:var(--mono);font-size:20px;width:92px;text-align:right}
+#zoom{display:block;width:100%;height:clamp(150px,20vh,260px);background:#050607}
+.ovs{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:6px 12px 8px}
+.ovs canvas{width:100%;height:34px;display:block;background:#050607;border-radius:3px}
+/* ---- main: 左=タブ領域 / 右=ミックスキュー ---- */
+.main{display:grid;grid-template-columns:1fr 400px;min-height:0;zoom:var(--u,1)}
+.main.qhidden{grid-template-columns:1fr}.main.qhidden .queue{display:none}
+.tabs .sp{flex:1}
+.qnext{align-self:center;display:none;gap:10px;align-items:center;font-size:12px;color:var(--dim);margin-right:10px;white-space:nowrap}
+.qnext b{color:var(--text);font-weight:600}.qnext span{font-family:var(--mono)}
+.main.qhidden .qnext{display:flex}
+.qtoggle{align-self:center;display:flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:12px;color:var(--text);background:#16181c}
+.qtoggle:hover{border-color:#4a505a}.qtoggle kbd{font-family:var(--mono);font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+.left{display:grid;grid-template-rows:34px 1fr;min-height:0}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+.tab{padding:8px 18px;color:var(--dim);cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0}
+.tab.on{color:var(--text);background:var(--panel);border-color:var(--line)}
+.tab.dis{color:var(--faint);cursor:default}
+.tab .ph{font-size:10px;margin-left:6px;color:var(--faint)}
+.view{display:none;min-height:0;overflow:auto}.view.on{display:grid}
+/* ---- deck view ---- */
+#deckview{grid-template-columns:1fr 400px 1fr;gap:10px;padding:10px 12px;background:var(--bg)}
+.deck,.mixer{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;position:relative}
+.deck.a{border-top:3px solid var(--deck-a)} .deck.b{border-top:3px solid var(--deck-b)}
+.deck{display:grid;grid-template-columns:1fr 64px;gap:12px}
+/* 線対称: A=テンポ左端・操作は右(中央)寄せ / B=操作は左(中央)寄せ・テンポ右端 */
+.deck.a{grid-template-columns:64px 1fr}
+.deck.a .dmain{align-items:flex-end;text-align:right} .deck.b .dmain{align-items:flex-start;text-align:left}
+.w3{width:118px}.w4{width:76px}.w5{width:66px}.w6{width:132px}
+.dmain{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lbl{font-size:10px;letter-spacing:.14em;color:var(--dim);margin:2px 0 -4px}
+.btn{min-width:var(--btn-minw);height:var(--btn-h);padding:0 12px;border-radius:5px;border:1px solid #333840;
+  background:linear-gradient(#262a31,#1a1d22);color:var(--text);font-size:var(--btn-fs);letter-spacing:.05em;
+  cursor:pointer;display:grid;place-items:center;transition:border-color .1s}
+.btn:hover{border-color:#4a505a}
+.btn:active{transform:translateY(1px)}
+.btn.on{border-color:var(--active);box-shadow:0 0 0 1px var(--active) inset,0 0 10px rgba(239,68,68,.25);color:#fff}
+.btn.big{width:var(--big);height:var(--big);border-radius:50%;font-size:16px;font-weight:700}
+.btn.play.on{background:radial-gradient(#3b1111,#1a1d22)}
+.pad{width:var(--pad-w);height:var(--pad-h);min-width:0;border-radius:6px;font-weight:700;font-size:16px}
+.a .pad.set{box-shadow:0 -4px 0 var(--deck-a) inset;border-color:#5b6470}.b .pad.set{box-shadow:0 -4px 0 var(--deck-b) inset;border-color:#5b6470}
+.loopbtn{min-width:0;width:54px;padding:0}
+.tempo{display:flex;flex-direction:column;align-items:center;gap:6px}
+.tempo .val{font-family:var(--mono);font-size:12px}
+.vfader{position:relative;width:40px;height:300px;background:#0a0b0d;border:1px solid var(--line);border-radius:5px;cursor:ns-resize}
+.vfader::before{content:"";position:absolute;left:50%;top:10px;bottom:10px;width:2px;background:#2d3139;transform:translateX(-50%)}
+.cap{position:absolute;left:-7px;width:52px;height:28px;border-radius:4px;background:linear-gradient(#50555e,#2a2e35);border:1px solid #666c76}
+.cap::after{content:"";position:absolute;left:5px;right:5px;top:13px;height:2px;background:#ddd}
+.phase{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.phase em{font-style:normal;color:var(--ok)}
+/* ---- mixer: 行ごとに [A ノブ | 名前 | B ノブ] ---- */
+.mixer{display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;justify-items:center;row-gap:2px;align-content:start}
+.mixer h4{margin:0 0 4px;font-size:15px;letter-spacing:.14em}
+.mixer h4.a{color:var(--deck-a)} .mixer h4.b{color:var(--deck-b)}
+.mname{font-size:16px;font-weight:600;letter-spacing:.1em;color:#c9ced6}
+.knob{cursor:ns-resize;line-height:0}
+.knob svg{width:var(--knob);height:var(--knob)}
+.fadrow{grid-column:1/-1;display:grid;grid-template-columns:1fr 100px 1fr;justify-items:center;align-items:end;margin-top:8px}
+.meters{display:flex;gap:6px}
+.vu{width:9px;height:130px;background:#0a0b0d;border:1px solid var(--line);border-radius:2px;position:relative;overflow:hidden}
+.vu i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(to top,#22c55e 0%,#22c55e 65%,#eab308 82%,#ef4444 100%);background-size:100% 130px;background-position:bottom}
+.chfader{height:130px}
+.xf{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;width:100%}
+.hfader{position:relative;width:320px;height:40px;background:#0a0b0d;border:1px solid var(--line);border-radius:5px;cursor:ew-resize}
+.hfader::before{content:"";position:absolute;top:50%;left:12px;right:12px;height:2px;background:#2d3139}
+.hcap{position:absolute;top:-7px;width:30px;height:52px;border-radius:4px;background:linear-gradient(90deg,#50555e,#2a2e35);border:1px solid #666c76}
+.hcap::after{content:"";position:absolute;top:5px;bottom:5px;left:13px;width:2px;background:#ddd}
+.seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg div{padding:6px 12px;font-size:12px;color:var(--dim);cursor:pointer}
+.seg div.on{background:#2a2e35;color:var(--text)}
+/* ---- library ---- */
+#libview{grid-template-columns:240px 1fr;gap:10px;padding:10px 12px;min-height:0}
+.tree,.tbl{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:auto}
+.tree div{padding:6px 12px;color:var(--dim);white-space:nowrap}
+.tree div.on{color:var(--text);background:#22262c}
+.search{padding:8px;border-bottom:1px solid var(--line)}
+.search input{width:100%;background:#0a0b0d;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px;font:inherit}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:#1b1e23;color:var(--dim);font-weight:500;font-size:11px;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid #1e2126;white-space:nowrap}
+td.n{font-family:var(--mono);text-align:right}
+tr:hover td{background:#1c1f24}
+.cls{display:inline-block;width:18px;text-align:center;border-radius:3px;font-weight:700;font-size:11px;color:#000}
+.cA{background:var(--ok)}.cB{background:var(--warn)}.cC{background:var(--active)}.cN{background:#3a3f47;color:var(--dim)}
+.load{font-size:11px;padding:3px 7px;border:1px solid var(--line);border-radius:3px;margin-right:4px;cursor:pointer}
+.load.la{color:var(--deck-a)}.load.lb{color:var(--deck-b)}.load.lq{color:var(--text)}
+/* ---- mix queue ---- */
+.queue{border-left:1px solid var(--line);background:var(--panel);display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+.qhead{padding:10px 12px;border-bottom:1px solid var(--line)}
+.qhead h3{margin:0;font-size:13px;letter-spacing:.12em;display:flex;align-items:baseline;gap:10px}
+.qhead h3 small{font-family:var(--mono);font-weight:400;color:var(--dim);letter-spacing:0}
+.qtools{display:flex;gap:6px;margin-top:8px}
+.qtools .btn{height:32px;min-width:0;font-size:12px}
+.qtools .btn.dis{color:var(--faint);cursor:default}
+.qlist{overflow:auto;padding:6px 8px}
+.qi{display:grid;grid-template-columns:4px 22px 1fr auto;gap:8px;align-items:center;background:var(--panel2);
+  border:1px solid var(--line);border-radius:5px;padding:7px 8px 7px 0;cursor:grab}
+.qi .bar{align-self:stretch;border-radius:5px 0 0 5px;background:transparent}
+.qi.onA .bar{background:var(--deck-a)} .qi.onB .bar{background:var(--deck-b)}
+.qi.done{opacity:.45}
+.qi.onA,.qi.onB{border-color:#3a3f47}
+.qi .no{font-family:var(--mono);color:var(--dim);text-align:right;font-size:12px}
+.qi .t1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.qi .t2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-size:11px;margin-top:1px}
+.qi .meta{text-align:right;font-family:var(--mono);font-size:12px;line-height:1.35}
+.qi .meta span{color:var(--dim)}
+.chip{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--dim);font-family:"Yu Gothic UI",sans-serif;margin-left:4px}
+.chip.a{color:#000;background:var(--deck-a);border-color:var(--deck-a)}
+.chip.b{color:#000;background:var(--deck-b);border-color:var(--deck-b)}
+.chip.next{color:var(--text);border-color:#5b6470}
+.qtr{display:flex;align-items:center;gap:8px;padding:3px 8px 3px 30px;font-size:11px;color:var(--dim);min-height:24px}
+.qtr .arr{color:var(--faint)}
+.qtr .ok{color:var(--ok)}.qtr .mid{color:var(--warn)}.qtr .ng{color:var(--active)}
+.qtr .how{margin-left:auto;color:var(--faint)}
+.qtr.cur .how{color:var(--text)}
+.qfoot{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.qfoot .btn{height:38px;font-size:12px}
+.chk{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
+.chk i{width:14px;height:14px;border:1px solid #5b6470;border-radius:3px;display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--ok)}
+.note{color:var(--faint);font-size:11px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="logo">DJ<b>●</b>MIXER</div>
+    <div class="stat">MASTER <em id="mbpm">140.6</em> BPM</div>
+    <div class="stat">LIMITER <em>−0.4 dB</em></div>
+    <div class="stat">出力 <em>スピーカー (Realtek)</em></div>
+    <div class="sp"></div>
+    <div class="note">モックアップ（音は出ません）— 波形・拍は実際の解析データ、B は A に拍同期している想定</div>
+    <div class="stat">解析キュー <em>1</em></div>
+    <div class="stat">MIDI <em>未接続</em></div>
+  </div>
+
+  <div class="strip">
+    <div class="dinfo a">
+      <div class="dl">A</div>
+      <div class="ttl"><b id="tA"></b><span id="arA"></span></div>
+      <div class="flags"><div class="flag on">MASTER</div><div class="flag">SYNC</div><div class="flag on">KEYLOCK</div></div>
+      <div class="key" id="kA"></div>
+      <div class="bpm"><span id="bA">—</span><small id="pA">+0.0%</small></div>
+      <div class="time" id="rA">-0:00</div>
+    </div>
+    <canvas id="zoom"></canvas>
+    <div class="dinfo b">
+      <div class="dl">B</div>
+      <div class="ttl"><b id="tB"></b><span id="arB"></span></div>
+      <div class="flags"><div class="flag">MASTER</div><div class="flag on">SYNC</div><div class="flag on">KEYLOCK</div></div>
+      <div class="key" id="kB"></div>
+      <div class="bpm"><span id="bB">—</span><small id="pB">+0.0%</small></div>
+      <div class="time" id="rB">-0:00</div>
+    </div>
+    <div class="ovs"><canvas id="ovA"></canvas><canvas id="ovB"></canvas></div>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <div class="tabs">
+        <div class="tab on" data-v="deckview">デッキ</div>
+        <div class="tab" data-v="libview">ライブラリ</div>
+        <div class="tab dis">つなぎ目<span class="ph">Phase 2</span></div>
+        <div class="tab dis">設定</div>
+        <div class="sp"></div>
+        <div class="qnext">キュー 次: <b>Freddie Freeloader</b><span>128.8 BPM ・ 5A</span><span>残り6曲</span></div>
+        <div class="qtoggle" id="qtoggle" title="ミックスキューの表示/非表示（Q）"><span id="qlabel">ミックスキューを隠す ▸</span><kbd>Q</kbd></div>
+      </div>
+      <div class="view on" id="deckview">
+        <div class="deck a" id="deckA"></div>
+        <div class="mixer" id="mixer"></div>
+        <div class="deck b" id="deckB"></div>
+      </div>
+      <div class="view" id="libview">
+        <div class="tree">
+          <div class="search"><input placeholder="検索（曲名・アーティスト・アルバム）"></div>
+          <div>すべての曲 <span style="color:var(--faint)">10,530</span></div>
+          <div class="on">解析済み <span style="color:var(--faint)">21</span></div>
+          <div>アーティスト</div><div>アルバム</div><div>フォルダ: G:\MUSIC</div>
+        </div>
+        <div class="tbl"><table id="libtbl"></table></div>
+      </div>
+    </div>
+
+    <aside class="queue">
+      <div class="qhead">
+        <h3>ミックスキュー <small id="qsum"></small></h3>
+        <div class="qtools">
+          <div class="btn">＋ ライブラリから追加</div>
+          <div class="btn dis" title="Phase 3">おまかせで並べる</div>
+          <div class="btn">保存</div>
+        </div>
+      </div>
+      <div class="qlist" id="qlist"></div>
+      <div class="qfoot">
+        <div class="btn">次の曲（Freddie Freeloader）を空いたデッキへ ▶</div>
+        <div class="chk"><i>✓</i>空いたデッキに次の曲を自動で読み込む</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!--MOCK_DATA-->
+<script>
+const M = window.MOCK;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = {a:css('--deck-a'), b:css('--deck-b'), lo:css('--wave-low'), mid:css('--wave-mid'), hi:css('--wave-high'),
+           line:css('--line'), dim:css('--dim'), faint:css('--faint'), active:css('--active')};
+
+// ---- beatmap: 時刻⇔拍位置（区間線形・端は外挿） ----
+function beatmap(beats){
+  const n = beats.length;
+  const pos = t => {
+    if (t <= beats[0]) return (t - beats[0]) / (beats[1] - beats[0]);
+    if (t >= beats[n-1]) return n-1 + (t - beats[n-1]) / (beats[n-1] - beats[n-2]);
+    let lo = 0, hi = n-1;
+    while (hi - lo > 1){ const m = (lo+hi)>>1; if (beats[m] <= t) lo = m; else hi = m; }
+    return lo + (t - beats[lo]) / (beats[lo+1] - beats[lo]);
+  };
+  const time = p => {
+    if (p <= 0) return beats[0] + p * (beats[1] - beats[0]);
+    if (p >= n-1) return beats[n-1] + (p-(n-1)) * (beats[n-1] - beats[n-2]);
+    const i = Math.floor(p); return beats[i] + (p - i) * (beats[i+1] - beats[i]);
+  };
+  const localBpm = t => { const p = pos(t); const i = Math.max(4, Math.min(n-5, Math.round(p)));
+    return 60 * 8 / (beats[i+4] - beats[i-4]); };
+  return {pos, time, localBpm};
+}
+const A = M.jz_bluetrain, B = M.jz_sowhat;
+A.bm = beatmap(A.beats); B.bm = beatmap(B.beats);
+A.barSet = new Map(A.barBeats.map((b,i)=>[b,i+1])); B.barSet = new Map(B.barBeats.map((b,i)=>[b,i+1]));
+
+// ---- 再生状態（A=マスター, B=スレーブ） ----
+let tA = 182.0;
+const phiR = Math.round(B.bm.pos(95.0) - A.bm.pos(tA));
+const tB = () => B.bm.time(A.bm.pos(tA) + phiR);
+
+// ---- キャンバス: デバイスピクセル単位で描く（アンチエイリアスの効いた輪郭・1px線をぼかさない） ----
+function fit(cv){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.round(r.width*d), h = Math.round(r.height*d);
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const g = cv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.imageSmoothingEnabled = true;
+  return [g, w, h, d];
+}
+// 波形サンプルを取り出す: 区間が1点未満なら線形補間、それ以上なら区間内の最大値
+function sampleAt(arr, f0, f1){
+  if (f1 - f0 < 1){
+    const f = (f0+f1)/2, i = Math.floor(f), u = f - i;
+    if (i < 0 || i+1 >= arr.length) return 0;
+    return arr[i]*(1-u) + arr[i+1]*u;
+  }
+  let v = 0; const a = Math.max(0, Math.floor(f0)), b = Math.min(arr.length, Math.ceil(f1));
+  for (let i = a; i < b; i++) if (arr[i] > v) v = arr[i];
+  return v;
+}
+// 上下対称の輪郭を1本のパスで塗る（縦棒の並びより滑らか）
+function fillEnvelope(g, vals, mid, amp, color){
+  const n = vals.length;
+  g.beginPath(); g.moveTo(0, mid);
+  for (let x = 0; x < n; x++) g.lineTo(x, mid - vals[x]*amp);
+  for (let x = n-1; x >= 0; x--) g.lineTo(x, mid + vals[x]*amp);
+  g.closePath(); g.fillStyle = color; g.fill();
+}
+function smooth3(v){ const o = new Float32Array(v.length);
+  for (let i = 0; i < v.length; i++) o[i] = (v[Math.max(0,i-1)] + 2*v[i] + v[Math.min(v.length-1,i+1)]) / 4; return o; }
+
+const WIN = 10; // 画面中央から左右 ±WIN 拍
+function drawLane(g, W, y0, h, d, T, t, deckColor, flip){
+  const pc = T.bm.pos(t), cx = W/2, ppb = W/(2*WIN), mid = y0 + h/2, rate = T.wave.rate;
+  g.save(); g.beginPath(); g.rect(0,y0,W,h); g.clip();
+  // 拍なし区間の斜線
+  for (const [s,e] of T.noBeat){
+    const x0 = cx + (T.bm.pos(s)-pc)*ppb, x1 = cx + (T.bm.pos(e)-pc)*ppb;
+    if (x1 < 0 || x0 > W) continue;
+    g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(x0,y0,x1-x0,h);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = d;
+    for (let x = x0 - h; x < x1; x += 8*d){ g.beginPath(); g.moveTo(x,y0+h); g.lineTo(x+h,y0); g.stroke(); }
+  }
+  // 各デバイスピクセル列の 拍位置→時刻→波形値
+  const t0 = new Float64Array(W+1);
+  for (let x = 0; x <= W; x++) t0[x] = T.bm.time(pc + (x-cx)/ppb) * rate;
+  const amp = (h/2 - 3*d) / 255;
+  for (const [arr, col, sc] of [[T.wave.low, C.lo, 1.0], [T.wave.mid, C.mid, .72], [T.wave.high, C.hi, .42]]){
+    const v = new Float32Array(W);
+    for (let x = 0; x < W; x++) v[x] = sampleAt(arr, t0[x], t0[x+1]);
+    fillEnvelope(g, smooth3(v), mid, amp*sc, col);
+  }
+  // 拍線・小節線（デバイスピクセルに揃えて描く）
+  for (let k = Math.ceil(pc-WIN-1); k <= pc+WIN+1; k++){
+    const x = Math.round(cx + (k-pc)*ppb), bar = T.barSet.get(k);
+    g.fillStyle = bar ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.16)';
+    g.fillRect(x, y0, bar ? 2*d : d, h);
+    if (bar){ g.fillStyle = C.dim; g.font = `${11*d}px Consolas`; g.fillText(String(bar), x + 4*d, flip ? y0+h-5*d : y0+13*d); }
+  }
+  g.restore();
+}
+function drawZoom(){
+  const [g,W,H,d] = fit(document.getElementById('zoom'));
+  g.clearRect(0,0,W,H);
+  const band = 22*d, lh = (H-band)/2;
+  drawLane(g, W, 0, lh, d, A, tA, C.a, false);
+  drawLane(g, W, lh+band, lh, d, B, tB(), C.b, true);
+  // 位相メーター（中央帯）
+  const y = lh, cx = W/2, ppb = W/(2*WIN);
+  g.fillStyle = '#0d0f12'; g.fillRect(0,y,W,band);
+  g.fillStyle = C.line; g.fillRect(0,y,W,d); g.fillRect(0,y+band-d,W,d);
+  const beatInBar = Math.floor(A.bm.pos(tA)) % 4;
+  for (let k = 0; k < 4; k++){
+    const x = Math.round(cx - 2*ppb + k*ppb);
+    g.fillStyle = (beatInBar === k) ? 'rgba(34,197,94,.85)' : '#23272d';
+    roundRect(g, x+2*d, y+7*d, ppb-4*d, 8*d, 2*d); g.fill();
+  }
+  g.fillStyle = C.dim; g.font = `${11*d}px Consolas`;
+  g.fillText('位相誤差 +1.8 ms   拍軸表示（SYNC中）', 12*d, y+15*d);
+  g.fillStyle = C.active; g.fillRect(Math.round(cx - d), 0, 2*d, H);
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function drawOv(id, T, t, col){
+  const [g,W,H,d] = fit(document.getElementById(id)); g.clearRect(0,0,W,H);
+  const ow = T.overview.low.length, n = T.wave.low.length;
+  for (const [arr, c, sc] of [[T.wave.low,C.lo,1],[T.wave.mid,C.mid,.72],[T.wave.high,C.hi,.42]]){
+    const v = new Float32Array(W);
+    for (let x = 0; x < W; x++) v[x] = sampleAt(arr, x/W*n, (x+1)/W*n);
+    fillEnvelope(g, smooth3(v), H/2, (H/2-2*d)/255*sc, c);
+  }
+  const px = Math.round(t / T.duration * W);
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0,0,px,H);
+  g.fillStyle = col; g.fillRect(px-d,0,2*d,H);
+}
+const fmt = s => { s = Math.max(0,s); const m = Math.floor(s/60), r = Math.floor(s%60); return `${m}:${String(r).padStart(2,'0')}`; };
+function info(){
+  const bA = A.bm.localBpm(tA), nativeB = B.bm.localBpm(tB());
+  document.getElementById('bA').textContent = bA.toFixed(1);
+  document.getElementById('bB').textContent = bA.toFixed(1);
+  const pct = (bA/nativeB - 1)*100;
+  document.getElementById('pB').textContent = (pct>=0?'+':'') + pct.toFixed(1) + '%';
+  document.getElementById('rA').textContent = '-' + fmt(A.duration - tA);
+  document.getElementById('rB').textContent = '-' + fmt(B.duration - tB());
+  document.getElementById('mbpm').textContent = bA.toFixed(1);
+}
+for (const [T,s] of [[A,'A'],[B,'B']]){
+  document.getElementById('t'+s).textContent = T.title;
+  document.getElementById('ar'+s).textContent = T.artist;
+  document.getElementById('k'+s).textContent = T.camelot;
+}
+let last = performance.now();
+function frame(now){
+  tA += (now - last)/1000; last = now;
+  if (tA > A.duration - 5) tA = 182;
+  drawZoom(); drawOv('ovA', A, tA, C.a); drawOv('ovB', B, tB(), C.b); info();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---- デッキ ----
+// デッキは中央(ミキサー)を軸に線対称: A は右寄せ・B は左寄せ、ボタンの並びも左右反転、テンポフェーダーは外側。
+// ホットキュー・ループの数字、および対になるボタン（◀1拍/1拍▶、×½/×2、拍/小節）の中は読み順のまま。
+// 反転するのは「まとまり」の位置だけ。ボタン幅を揃えてあるので形は対称になる
+function deckHTML(s){
+  const isA = s === 'A';
+  const m = items => (isA ? items : [...items].reverse()).join('');
+  const main = `<div class="dmain">
+    <div class="row">${m(['<div class="btn big play on">▶︎ ▮▮</div>', '<div class="btn big">CUE</div>'])}</div>
+    <div class="row">${m([`<div class="btn w3 ${isA?'':'on'}">SYNC</div>`, `<div class="btn w3 ${isA?'on':''}">MASTER</div>`, '<div class="btn w3 on">KEYLOCK</div>'])}</div>
+    <div class="row">${m(['<div class="btn w4">◀ 1拍</div><div class="btn w4">1拍 ▶</div>', '<div class="btn w4">×½</div><div class="btn w4">×2</div>'])}</div>
+    <div class="lbl">HOT CUE</div>
+    <div class="row">${[1,2,3,4].map(i=>`<div class="btn pad ${i<3?'set':''}">${i}</div>`).join('')}</div>
+    <div class="lbl">LOOP</div>
+    <div class="row">${['1/4','1/2','1','2','4','8','16'].map(x=>`<div class="btn loopbtn">${x}</div>`).join('')}</div>
+    <div class="row">${m(['<div class="btn w5 on">拍</div><div class="btn w5">小節</div>', '<div class="btn w6">ここを1拍目に</div><div class="btn w6">拍子: 自動(4)</div>'])}</div>
+    <div class="phase">小節頭の信頼度 <em>高</em><br>${isA?'テンポ揺れ 128–161 BPM・拍なし 16秒・−11.2 LUFS → +2.8dB':'テンポ揺れ 134–141 BPM・拍なし 10秒・−15.3 LUFS → −0.7dB'}</div>
+  </div>`;
+  const tempo = `<div class="tempo"><div class="lbl">TEMPO</div>
+    <div class="vfader"><div class="cap" style="top:135px"></div></div>
+    <div class="val">±8%</div><div class="val">${isA?'+0.0%':'SYNC'}</div></div>`;
+  return isA ? tempo + main : main + tempo;
+}
+document.getElementById('deckA').innerHTML = deckHTML('A');
+document.getElementById('deckB').innerHTML = deckHTML('B');
+
+// ---- ミキサー（ノブは SVG。幾何精度優先でアンチエイリアス） ----
+function knobSVG(v, col){
+  const a0 = -135, a = a0 + v*270, r = 30, cx = 38, cy = 38;
+  const pt = (deg, rr) => [cx + rr*Math.sin(deg*Math.PI/180), cy - rr*Math.cos(deg*Math.PI/180)];
+  const [x0,y0] = pt(a0, r), [x1,y1] = pt(a, r), large = (v*270) > 180 ? 1 : 0;
+  const [ix,iy] = pt(a, 18), [ox,oy] = pt(a, 6);
+  const ticks = Array.from({length:11}, (_,i) => { const dg = a0 + i*27, [p,q] = pt(dg, 35), [p2,q2] = pt(dg, 37.5);
+    return `<line x1="${p}" y1="${q}" x2="${p2}" y2="${q2}" stroke="#4a4f58" stroke-width="1.2"/>`; }).join('');
+  return `<svg viewBox="0 0 76 76" shape-rendering="geometricPrecision">
+    <defs><radialGradient id="kg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#3a3f48"/><stop offset="1" stop-color="#1c1f24"/></radialGradient></defs>
+    ${ticks}
+    <circle cx="38" cy="38" r="30" fill="none" stroke="#262a31" stroke-width="4"/>
+    ${v > 0.002 ? `<path d="M${x0} ${y0} A30 30 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>` : ''}
+    <circle cx="38" cy="38" r="23" fill="url(#kg)" stroke="#454a53" stroke-width="1"/>
+    <line x1="${ox}" y1="${oy}" x2="${ix}" y2="${iy}" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+function knob(v, col='#9aa3ad'){ return `<div class="knob" data-v="${v}" data-c="${col}">${knobSVG(v,col)}</div>`; }
+const mrow = (name, va, vb, ca, cb) => `${knob(va, ca)}<div class="mname">${name}</div>${knob(vb, cb)}`;
+document.getElementById('mixer').innerHTML = `
+  <h4 class="a">CH A</h4><div></div><h4 class="b">CH B</h4>
+  ${mrow('GAIN', .5, .5, C.a, C.b)}${mrow('HI', .5, .5)}${mrow('MID', .5, .5)}${mrow('LOW', .5, .08)}${mrow('FILTER', .5, .5)}
+  <div class="fadrow">
+    <div class="vfader chfader"><div class="cap" style="top:12px"></div></div>
+    <div class="meters"><div class="vu"><i id="vuA" style="height:60%"></i></div><div class="vu"><i id="vuB" style="height:40%"></i></div></div>
+    <div class="vfader chfader"><div class="cap" style="top:12px"></div></div>
+  </div>
+  <div class="xf"><div class="hfader" id="xf"><div class="hcap" style="left:180px"></div></div>
+    <div class="seg"><div class="on">なめらか</div><div>リニア</div><div>カット</div></div></div>`;
+document.querySelectorAll('.knob').forEach(k => {
+  k.addEventListener('pointerdown', e => { k.setPointerCapture(e.pointerId); const y0 = e.clientY, v0 = +k.dataset.v;
+    const mv = ev => { const v = Math.max(0, Math.min(1, v0 - (ev.clientY - y0)/200)); k.dataset.v = v; k.innerHTML = knobSVG(v, k.dataset.c); };
+    k.addEventListener('pointermove', mv); k.addEventListener('pointerup', () => k.removeEventListener('pointermove', mv), {once:true}); });
+  k.addEventListener('dblclick', () => { k.dataset.v = .5; k.innerHTML = knobSVG(.5, k.dataset.c); });
+});
+const xf = document.getElementById('xf'), xcap = xf.firstElementChild;
+xf.addEventListener('pointerdown', e => { xf.setPointerCapture(e.pointerId);
+  const mv = ev => { const u = uiScale(), r = xf.getBoundingClientRect(); xcap.style.left = Math.max(0, Math.min(r.width/u-32, (ev.clientX - r.left)/u - 15)) + 'px'; };
+  mv(e); xf.addEventListener('pointermove', mv); xf.addEventListener('pointerup', () => xf.removeEventListener('pointermove', mv), {once:true}); });
+document.querySelectorAll('#deckview .btn:not(.big)').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
+setInterval(() => { document.getElementById('vuA').style.height = (55 + Math.random()*20) + '%';
+  document.getElementById('vuB').style.height = (35 + Math.random()*20) + '%'; }, 90);
+
+// ---- 画面サイズに応じた操作パネルの拡大率（1920×1080 基準、0.85〜1.5 倍） ----
+const uiScale = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u')) || 1;
+function applyScale(){
+  // 上部(ヘッダー・曲情報行)も拡大するので、2回計算して収束させる
+  for (let i = 0; i < 2; i++){
+    const topH = document.querySelector('.top').getBoundingClientRect().height + document.querySelector('.strip').getBoundingClientRect().height;
+    const u = Math.max(0.85, Math.min(1.5, innerWidth / 1920, (innerHeight - topH) / 745));
+    document.documentElement.style.setProperty('--u', u.toFixed(3));
+  }
+}
+addEventListener('resize', applyScale); applyScale();
+
+// ---- ミックスキューの表示/非表示（アクション ui.queue.toggle。ボタン・Q キー・MIDI から同じ操作） ----
+const mainEl = document.querySelector('.main');
+function setQueueVisible(show){
+  mainEl.classList.toggle('qhidden', !show);
+  document.getElementById('qlabel').textContent = show ? 'ミックスキューを隠す ▸' : '◂ ミックスキューを表示';
+  try { localStorage.setItem('queueVisible', show ? '1' : '0'); } catch(e) {}
+}
+document.getElementById('qtoggle').addEventListener('click', () => setQueueVisible(mainEl.classList.contains('qhidden')));
+addEventListener('keydown', e => { if ((e.key === 'q' || e.key === 'Q') && !e.target.closest('input')) setQueueVisible(mainEl.classList.contains('qhidden')); });
+let qv = '1'; try { qv = localStorage.getItem('queueVisible') ?? '1'; } catch(e) {}
+if (new URLSearchParams(location.search).get('queue') === '0') qv = '0';
+setQueueVisible(qv !== '0');
+
+// ---- タブ ----
+document.querySelectorAll('.tab:not(.dis)').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === t.dataset.v));
+}));
+
+// ---- 曲データ（Phase 0 の解析結果） ----
+const LIB = {
+  rideontime:['Ride On Time','山下達郎','Ride On Time',118.0,'11B',-15.1,'B',354],
+  bluetrain:['Blue Train','John Coltrane','Blue Train',140.6,'5B',-11.2,'B',598],
+  sowhat:['So What','Miles Davis','Kind of Blue',136.4,'7A',-15.3,'B',565],
+  freddie:['Freddie Freeloader','Miles Davis','Kind of Blue',128.8,'5A',-15.1,'A',589],
+  allblues:['All Blues','Miles Davis','Kind of Blue',139.4,'7A',-17.0,'A',696],
+  captain:['Captain Fingers','Lee Ritenour','Captain Fingers',125.6,'8A',-18.1,'B',428],
+  casiopea:['Coast To Coast','Casiopea','Sun Sun',136.2,'7B',-15.2,'B',245],
+  tomahawk:['Tomahawk','Rasmus Faber','はるかなレシーブ OST',139.0,'6A',-8.1,'A',109],
+  getlucky:['Get Lucky','Daft Punk','Random Access Memories',116.0,'11A',-10.9,'A',370],
+  autumn:['Autumn Leaves','Bill Evans Trio','Portrait In Jazz',null,null,null,'N',361],
+  birdland:['Birdland','Weather Report','Heavy Weather',156.7,'9B',-16.0,'B',359],
+  teentown:['Teen Town','Weather Report','Heavy Weather',128.5,'11B',-18.2,'B',172],
+  birdsoffire:['Birds of Fire','Mahavishnu Orchestra','Birds of Fire',160.1,'1A',-13.6,'C',348],
+  tsquare:['勇者','T-SQUARE','B.C.A.D',128.8,'9B',-11.6,'B',330],
+  chant:['Chant','Fourplay','Between the Sheets',89.0,'11A',-14.1,'B',385],
+  uptown:['Uptown Funk','Mark Ronson','Uptown Special',115.0,'7A',-11.6,'A',270],
+  virtual:['Virtual Insanity','Jamiroquai','High Times',92.0,'2B',-9.2,'B',229],
+};
+
+// ---- ライブラリ ----
+document.getElementById('libtbl').innerHTML = `<tr><th></th><th>曲名</th><th>アーティスト</th><th>アルバム</th><th>BPM</th><th>キー</th><th>LUFS</th><th title="A=そのまま拍合わせ可 / B=補正で可 / C=拍合わせ不可">拍</th></tr>` +
+  Object.values(LIB).map(r => `<tr><td><span class="load la">A</span><span class="load lb">B</span><span class="load lq">＋キュー</span></td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+    <td class="n">${r[3]??'—'}</td><td class="n">${r[4]??'—'}</td><td class="n">${r[5]??'—'}</td>
+    <td><span class="cls c${r[6]}">${r[6]==='N'?'·':r[6]}</span>${r[6]==='N'?' <span style="color:var(--faint)">未解析</span>':''}</td></tr>`).join('');
+
+// ---- ミックスキュー ----
+// 相性: テンポ（倍/半も考慮した必要変化率）と Camelot の関係
+function tempoRel(b1, b2){
+  let best = null;
+  for (const k of [1, 2, 0.5]){ const pct = (b1/(b2*k) - 1)*100; if (!best || Math.abs(pct) < Math.abs(best.pct)) best = {pct, k}; }
+  return best;
+}
+function keyRel(k1, k2){
+  const n1 = parseInt(k1), n2 = parseInt(k2), l1 = k1.slice(-1), l2 = k2.slice(-1);
+  const dn = Math.min((n1-n2+12)%12, (n2-n1+12)%12);
+  if (dn === 0 && l1 === l2) return ['◎','ok','同じキー'];
+  if ((dn === 1 && l1 === l2) || (dn === 0 && l1 !== l2)) return ['○','ok','隣接キー'];
+  if (dn === 2 && l1 === l2) return ['△','mid','2つ隣'];
+  return ['×','ng','衝突の可能性'];
+}
+const QUEUE = [
+  {id:'rideontime', st:'done', use:'フル'},
+  {id:'bluetrain', st:'onA', use:'フル'},
+  {id:'sowhat', st:'onB', use:'0:00–5:40（テーマ＋マイルスのソロ）'},
+  {id:'freddie', st:'next', use:'フル'},
+  {id:'allblues', st:'', use:'フル'},
+  {id:'casiopea', st:'', use:'フル'},
+  {id:'tomahawk', st:'', use:'フル'},
+  {id:'getlucky', st:'', use:'1:10–6:09（ボーカル前から）'},
+  {id:'autumn', st:'wait', use:'フル'},
+];
+const HOW = {1:'ロングブレンド 16小節（ミックス中）', 2:'未設定（つなぎ目で編集）'};
+function qItem(q, i){
+  const r = LIB[q.id], chip = q.st==='onA' ? '<span class="chip a">A 再生中</span>' : q.st==='onB' ? '<span class="chip b">B ミックス中</span>'
+    : q.st==='next' ? '<span class="chip next">次</span>' : q.st==='done' ? '<span class="chip">再生済み</span>' : q.st==='wait' ? '<span class="chip">解析待ち</span>' : '';
+  return `<div class="qi ${q.st}"><div class="bar"></div><div class="no">${i+1}</div>
+    <div><div class="t1">${r[0]}${chip}</div><div class="t2">${r[1]} ・ ${q.use}</div></div>
+    <div class="meta">${r[3] ? r[3].toFixed(1) : '—'} <span>BPM</span><br>${r[4] ?? '—'} <span>${fmt(r[7])}</span> <span class="cls c${r[6]}" style="margin-left:2px">${r[6]==='N'?'·':r[6]}</span></div></div>`;
+}
+function qTrans(a, b, i){
+  const ra = LIB[a.id], rb = LIB[b.id];
+  if (!ra[3] || !rb[3]) return `<div class="qtr"><span class="arr">↓</span>解析後に相性を表示</div>`;
+  const t = tempoRel(ra[3], rb[3]), k = keyRel(ra[4], rb[4]);
+  const tc = Math.abs(t.pct) <= 3 ? 'ok' : Math.abs(t.pct) <= 8 ? 'mid' : 'ng';
+  const how = i === 1 ? HOW[1] : (i === 0 ? '' : HOW[2]);
+  return `<div class="qtr ${i===1?'cur':''}"><span class="arr">↓</span>
+    <span class="${tc}">テンポ ${t.pct>=0?'+':''}${t.pct.toFixed(1)}%${t.k!==1?` (×${t.k})`:''}</span>
+    <span class="${k[1]}">キー ${k[0]}</span><span class="how">${how}</span></div>`;
+}
+let html = '';
+QUEUE.forEach((q, i) => { html += qItem(q, i); if (i < QUEUE.length-1) html += qTrans(q, QUEUE[i+1], i); });
+document.getElementById('qlist').innerHTML = html;
+const total = QUEUE.reduce((s,q) => s + LIB[q.id][7], 0);
+document.getElementById('qsum').textContent = `${QUEUE.length}曲 ・ 約${Math.round(total/60)}分`;
+</script>
+</body>
+</html>

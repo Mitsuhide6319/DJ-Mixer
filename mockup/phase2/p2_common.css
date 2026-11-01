@@ -1,0 +1,35 @@
+/* Phase 2 モックアップ共通（theme.css に追加） */
+.app{grid-template-rows:auto 1fr}
+.p2main{display:grid;grid-template-columns:1fr 400px;min-height:0;zoom:var(--u,1)}
+.p2main.noqueue{grid-template-columns:1fr}
+.p2left{display:grid;grid-template-rows:34px 1fr;min-height:0}
+.p2view{padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0}
+.p2card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.p2title{display:flex;align-items:center;gap:14px}
+.p2title b{font-size:18px}.p2title span{color:var(--dim)}
+.p2title .sp{flex:1}
+.p2badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#22262c;color:var(--dim);border:1px solid var(--line)}
+.p2note{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:var(--faint);font-size:11px;pointer-events:none;white-space:nowrap}
+.proposal{font-size:12px;color:#000;background:var(--warn);border-radius:3px;padding:2px 8px;font-weight:700;letter-spacing:.05em}
+canvas.cv{display:block;width:100%}
+.selbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.selbar .big{font-family:var(--mono);font-size:24px;color:var(--text)}
+.selbar .len{font-family:var(--mono);color:var(--dim)}
+.selbar .btn{height:38px;min-width:0;font-size:13px}
+.selbar input{background:#0a0b0d;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:4px;font:inherit;width:260px}
+.lbl2{font-size:11px;color:var(--dim);letter-spacing:.1em}
+.secrow{position:relative;height:46px}
+.secblk{position:absolute;top:0;bottom:0;border-radius:4px;border:1px solid rgba(255,255,255,.12);cursor:pointer;overflow:hidden;
+  padding:4px 6px;font-size:11px;line-height:1.35;color:#0b0c0e;transition:filter .1s}
+.secblk:hover{filter:brightness(1.15)}
+.secblk.sel{outline:2px solid #fff;outline-offset:-2px}
+.secblk small{display:block;opacity:.75;font-family:var(--mono)}
+.joins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.join h4{margin:0 0 8px;font-size:13px;font-weight:600}
+.join h4 span{color:var(--dim);font-weight:400}
+.join .row2{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.join .btn{height:34px;min-width:0;font-size:12px}
+.seg2{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg2 div{padding:7px 12px;font-size:12px;color:var(--dim);cursor:pointer}
+.seg2 div.on{background:#2a2e35;color:var(--text)}
+.qi.cur{border-color:#8a9099;box-shadow:0 0 0 1px #8a9099 inset}

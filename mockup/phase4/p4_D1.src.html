@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 4 案D1 ミックスのタブ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.trk{display:grid;grid-template-columns:24px 1fr 80px 90px;gap:8px;align-items:center;padding:5px 6px;font-size:13px;border-radius:4px}
+.trk:hover{background:#1c1f24}.trk .n{color:var(--faint);font-family:var(--mono)}
+.files div{font-size:12px;color:var(--dim);font-family:var(--mono);padding:2px 0}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案D1 ミックスのタブ</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab">つなぎ目</div><div class="tab">おまかせ</div><div class="tab on">ミックス</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div class="dgrid">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="p2card"><div class="p2title"><b>作ったミックス</b><span id="cnt"></span><div class="sp"></div>
+              <div class="seg2"><div class="on">新しい順</div><div>名前順</div><div>よく聴く順</div></div></div>
+              <div class="mixlist" id="list" style="margin-top:10px"></div>
+              <p class="note">キューの「保存」、おまかせの「この案をキューに入れる」、書き出しのたびに、ここへ自動で残ります（書き出したミックスは、そのときの並び・使う範囲・つなぎごと）。</p>
+            </div>
+            <div class="p2card"><div class="p2title"><b>好み</b><span>おまかせの選曲に使います</span></div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+                <label class="opt"><input type="checkbox" checked> ★ の多い曲を優先する（★5 は相性 +0.05 相当、★2 は −0.05）</label>
+                <label class="opt"><input type="checkbox" checked> ★1 の曲は使わない</label>
+                <label class="opt"><input type="checkbox" checked> 最近 <select><option>7</option><option selected>14</option><option>30</option></select> 日にかけた曲は避ける</label>
+                <p class="note">★ は、ライブラリの一覧・デッキ・おまかせの結果・この画面の曲目で付けられます（クリックで 1〜5、もう一度で消す）。<br>「かけた」は、デッキで 30 秒以上鳴った曲・ミックスを通して再生した曲・書き出した曲。</p>
+              </div>
+            </div>
+          </div>
+          <div class="p2card" id="detail"></div>
+        </div>
+      </div>
+    </div>
+    <aside class="queue" id="queue"><div class="qhead"><h3>ミックスキュー <small>4曲</small></h3></div><div class="qlist" id="qlist"></div></aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { T, fmt } = P2;
+const byTitle = Object.fromEntries(T.map(t => [t.title, t]));
+const tr = (title, artist, bpm, key, stars) => ({ title, artist, bpm, key, stars });
+const MIXES = [
+  { name: '2026-09-30 おまかせ（上げていく）', date: '9/30 21:12', kind: 'auto', min: 41, plays: 3, files: ['G:\\MIX\\2026-09-30 2112 ミックス.mp3（320kbps・40:24）', '　曲目リスト .txt'],
+    tracks: [tr('Asayake', 'Casiopea', 113.1, '1B', 5), tr('Tomorrow Is Another Day', '本田雅人', 112.3, '2B', 4), tr('Lazo', '大野雄二', 115.0, '2A', 0), tr('THE TURNING BELL', 'CASIOPEA', 117.2, '3B', 4), tr('Light Years', 'Chick Corea Elektric Band', 118.4, '3A', 3), tr('Sequencer', 'Al Di Meola', 121.0, '4B', 0), tr('Funk In The Box', 'Chickenshack', 121.5, '4A', 5), tr('Chou Chow', 'THE SQUARE', 124.8, '5A', 4)] },
+  { name: '山下達郎 夜のドライブ', date: '9/29 23:40', kind: 'hand', min: 28, plays: 7, files: [],
+    tracks: [tr("LET'S DANCE BABY", '山下達郎', 117.5, '6B', 5), tr('CIRCUS TOWN', '山下達郎', 92.1, '8A', 4), tr('潮騒', '山下達郎', 96.0, '9A', 5), tr('YELLOW CAB', '山下達郎', 124.0, '7B', 3)] },
+  { name: 'Casiopea 朝のテーマ', date: '9/29 08:05', kind: 'hand', min: 22, plays: 2, files: ['G:\\MIX\\Casiopea 朝のテーマ.wav（22:10）'],
+    tracks: [tr('Asayake', 'Casiopea', 113.1, '1B', 5), tr('Living On A Feeling', 'CASIOPEA', 112.0, '11B', 4), tr('Night storm', 'CASIOPEA', 119.2, '10B', 3), tr('Magic Ray', 'CASIOPEA', 137.1, '11B', 0)] },
+  { name: '2026-09-28 おまかせ（キープ）', date: '9/28 22:31', kind: 'auto', min: 44, plays: 1, files: [], tracks: [tr('Room 335', 'Larry Carlton', 128.1, '11B', 4), tr('Crazy Horse', 'Dave Weckl', 134.0, '11B', 0), tr('Mid-Manhattan', 'CASIOPEA', 130.8, '11B', 3)] },
+];
+let sel = 0;
+const stars = (n, id) => `<span class="stars" data-s="${id}">${[1, 2, 3, 4, 5].map(k => `<b class="${k <= n ? 'on' : ''}" data-k="${k}">★</b>`).join('')}</span>`;
+function render() {
+  document.getElementById('cnt').textContent = `${MIXES.length} 件`;
+  document.getElementById('list').innerHTML = MIXES.map((m, i) => `<div class="mixrow ${i === sel ? 'sel' : ''}" data-i="${i}">
+    <div><b>${m.name}</b><br><small>${m.tracks.slice(0, 3).map(t => t.title).join('・')} …</small></div>
+    <span class="tag ${m.kind === 'auto' ? 'auto' : ''}">${m.kind === 'auto' ? 'おまかせ' : '手で作った'}</span>
+    <span class="hist">${m.tracks.length}曲<br>${m.min}分</span><span class="hist">再生 ${m.plays}回</span><span class="hist">${m.date}${m.files.length ? '<br>⤓ 書き出し済み' : ''}</span></div>`).join('');
+  const m = MIXES[sel];
+  document.getElementById('detail').innerHTML = `<div class="p2title"><b>${m.name}</b><span>${m.tracks.length}曲 ・ 約${m.min}分 ・ ${m.date}</span></div>
+    <div class="acts" style="margin:10px 0"><div class="btn primary">キューに開く</div><div class="btn">▶ 通し再生</div><div class="btn">⤓ 書き出す…</div><div class="btn">複製</div><div class="btn">名前を変える</div><div class="btn">削除</div></div>
+    <div class="lbl2" style="margin-bottom:4px">曲目（★ をクリックで評価）</div>
+    ${m.tracks.map((t, i) => `<div class="trk"><span class="n">${i + 1}</span><div>${t.title} <small style="color:var(--dim)">${t.artist}</small></div><span class="hist">${t.bpm.toFixed(1)} ・ ${t.key}</span>${stars(t.stars, `${sel}-${i}`)}</div>`).join('')}
+    <div class="lbl2" style="margin:10px 0 4px">書き出したファイル</div><div class="files">${m.files.map(f => `<div>${f}</div>`).join('') || '<div>まだありません</div>'}</div>`;
+  document.getElementById('qlist').innerHTML = MIXES[1].tracks.map((t, i) => `<div class="qi"><div class="bar"></div><div class="no">${i + 1}</div><div><div class="t1">${t.title}</div><div class="t2">${t.artist} ・ ${stars(t.stars, 'q' + i)}</div></div><div class="meta">${t.bpm.toFixed(1)} <span>BPM</span><br>${t.key}</div></div>`).join('');
+}
+document.addEventListener('click', e => {
+  const r = e.target.closest('.mixrow'); if (r) { sel = +r.dataset.i; render(); return; }
+  const s = e.target.closest('.stars b'); if (s) {
+    const [a, b] = s.parentElement.dataset.s.split('-'); const t = a.startsWith('q') ? MIXES[1].tracks[+a.slice(1)] : MIXES[+a].tracks[+b];
+    const k = +s.dataset.k; t.stars = t.stars === k ? 0 : k; render();
+  }
+});
+render();
+</script>
+</body></html>

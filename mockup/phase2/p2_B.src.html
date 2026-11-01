@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>DJ Mixer — Phase 2 案B つなぎ目エディタ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSS-->
+<style>
+.ov{display:grid;grid-template-columns:90px 1fr 190px;align-items:center;gap:10px;margin:4px 0}
+.ov .who{font-size:12px}.ov .who b{display:block;font-size:13px}
+.ov .rng{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right}
+.editor{position:relative}
+.autolbl{display:grid;grid-template-columns:120px 1fr;align-items:center}
+.autolbl span{font-size:11px;color:var(--dim);letter-spacing:.06em}
+select.tpl{background:#0a0b0d;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:4px;font:inherit}
+.info{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
+.info b{font-family:var(--mono)}
+.okc{color:var(--ok)}.midc{color:var(--warn)}.ngc{color:var(--active)}
+</style>
+</head><body>
+<div class="app">
+  <div class="top"><div class="logo">DJ<b>●</b>MIXER</div><span class="proposal">案B つなぎ目エディタ</span><div class="sp"></div>
+    <div class="stat">モックアップ（音は出ません）— 波形・小節は実際の解析データ</div></div>
+  <div class="p2main">
+    <div class="p2left">
+      <div class="tabs"><div class="tab">デッキ</div><div class="tab">ライブラリ</div><div class="tab on">つなぎ目</div><div class="tab">設定</div></div>
+      <div class="p2view">
+        <div class="p2card">
+          <div class="p2title"><div class="btn" id="prev" style="height:34px;min-width:0">◀ 前のつなぎ</div>
+            <b id="ttl"></b><div class="sp"></div><div class="btn" id="next" style="height:34px;min-width:0">次のつなぎ ▶</div></div>
+          <div class="info" id="info" style="margin-top:8px"></div>
+        </div>
+        <div class="p2card">
+          <div class="lbl2" style="margin-bottom:4px">曲ごとの使う範囲（小さな波形の上をドラッグ）</div>
+          <div class="ov"><div class="who" id="whoA"></div><canvas class="cv" id="ovA" style="height:44px;cursor:text"></canvas><div class="rng" id="rngA"></div></div>
+          <div class="ov"><div class="who" id="whoB"></div><canvas class="cv" id="ovB" style="height:44px;cursor:text"></canvas><div class="rng" id="rngB"></div></div>
+        </div>
+        <div class="p2card editor">
+          <div class="lbl2" style="margin-bottom:6px">つなぎ目（小節の目盛りを共通にして上下に重ねています）。下の曲を左右にドラッグして重なりの長さを決めます。</div>
+          <canvas class="cv" id="ed" style="height:330px;cursor:grab"></canvas>
+          <div class="lbl2" style="margin:10px 0 4px">ミキサーの動き（繋ぎ方を選ぶと自動で決まります）</div>
+          <canvas class="cv" id="auto" style="height:150px"></canvas>
+        </div>
+        <div class="p2card selbar">
+          <div><div class="lbl2">繋ぎ方</div><select class="tpl" id="tpl">
+            <option value="long">ロングブレンド（低音を入れ替えてゆっくり）</option>
+            <option value="short">ショートブレンド（短く重ねる）</option>
+            <option value="bass">低音だけ入れ替え（両方鳴らしたまま）</option>
+            <option value="filter">フィルターで前の曲を消す</option>
+            <option value="echo">エコーアウト（前の曲を響かせて切り替え）</option></select></div>
+          <div><div class="lbl2">重なり</div><div class="seg2"><div id="minus">−4</div><div id="ovl" style="color:var(--text);font-family:var(--mono);min-width:90px;text-align:center"></div><div id="plus">＋4</div></div></div>
+          <div class="btn">▶ つなぎ目だけ試聴（前後 8 小節）</div><div class="btn">▶ 前の曲の範囲の頭から</div>
+        </div>
+      </div>
+    </div>
+    <aside class="queue">
+      <div class="qhead"><h3>ミックスキュー <small id="qsum"></small></h3></div>
+      <div class="qlist" id="qlist"></div>
+      <div class="qfoot"><div class="lbl2">曲と曲の間（↓）をクリックすると、そのつなぎ目を編集します</div></div>
+    </aside>
+  </div>
+</div>
+<!--DATA-->
+<!--COMMON-->
+<script>
+const { T, C, fmt, snap, fitCanvas, drawWave, barIndex, uiScale } = P2;
+let pair = 1;
+const J = {};                         // "i" -> {n: 重なり小節数, tpl}
+const jn = i => (J[i] ??= { n: 16, tpl: 'long' });
+T[0].use = { t0: T[0].sections[1].t0, t1: T[0].sections[4].t0 };
+T[1].use = { t0: 0, t1: T[1].sections[3].t1 };
+const A = () => T[pair], B = () => T[pair + 1];
+
+function tempoRel(b1, b2) {
+  let best = null;
+  for (const k of [1, 2, 0.5]) { const pct = (b1 / (b2 * k) - 1) * 100; if (!best || Math.abs(pct) < Math.abs(best.pct)) best = { pct, k }; }
+  return best;
+}
+function keyRel(k1, k2) {
+  const n1 = parseInt(k1), n2 = parseInt(k2), l1 = k1.slice(-1), l2 = k2.slice(-1);
+  const dn = Math.min((n1 - n2 + 12) % 12, (n2 - n1 + 12) % 12);
+  if (dn === 0 && l1 === l2) return ['◎ 同じキー', 'okc'];
+  if ((dn === 1 && l1 === l2) || (dn === 0 && l1 !== l2)) return ['○ 隣接キー', 'okc'];
+  if (dn === 2 && l1 === l2) return ['△ 2つ隣', 'midc'];
+  return ['× 衝突の可能性（重なりは短めがおすすめ）', 'ngc'];
+}
+
+function renderQueue() {
+  let h = '', total = 0;
+  T.forEach((t, i) => {
+    const full = t.use.t0 <= 0.5 && t.use.t1 >= t.duration - 0.5;
+    total += t.use.t1 - t.use.t0;
+    h += `<div class="qi"><div class="bar"></div><div class="no">${i + 1}</div><div><div class="t1">${t.title}</div>
+      <div class="t2">${t.artist} ・ ${full ? 'フル' : fmt(t.use.t0, 0) + '–' + fmt(t.use.t1, 0)}</div></div>
+      <div class="meta">${t.bpm.toFixed(1)} <span>BPM</span><br>${t.camelot}</div></div>`;
+    if (i < T.length - 1) {
+      const j = jn(i), names = { long: 'ロングブレンド', short: 'ショート', bass: '低音入れ替え', filter: 'フィルター', echo: 'エコーアウト' };
+      h += `<div class="qtr ${i === pair ? 'cur' : ''}" data-p="${i}" style="cursor:pointer;${i === pair ? 'background:#22262c;border-radius:4px' : ''}"><span class="arr">↓</span>
+        ${names[j.tpl]} ${j.n}小節<span class="how">${i === pair ? '編集中' : 'クリックで編集'}</span></div>`;
+    }
+  });
+  document.getElementById('qlist').innerHTML = h;
+  document.getElementById('qsum').textContent = `${T.length}曲 ・ 約${Math.round(total / 60)}分`;
+}
+document.getElementById('qlist').addEventListener('click', e => { const q = e.target.closest('[data-p]'); if (q) { pair = +q.dataset.p; renderAll(); } });
+
+function renderHead() {
+  const a = A(), b = B(), t = tempoRel(a.bpm, b.bpm), k = keyRel(a.camelot, b.camelot);
+  document.getElementById('ttl').textContent = `${pair + 1} → ${pair + 2}：${a.title} → ${b.title}`;
+  const tc = Math.abs(t.pct) <= 3 ? 'okc' : Math.abs(t.pct) <= 8 ? 'midc' : 'ngc';
+  document.getElementById('info').innerHTML =
+    `<span>テンポ <b>${a.bpm.toFixed(1)} → ${b.bpm.toFixed(1)}</b> BPM ・ <span class="${tc}">次の曲を ${t.pct >= 0 ? '+' : ''}${t.pct.toFixed(1)}%${t.k !== 1 ? `（×${t.k}）` : ''} で合わせる</span></span>` +
+    `<span>キー <b>${a.camelot} → ${b.camelot}</b> ・ <span class="${k[1]}">${k[0]}</span></span>` +
+    `<span>繋ぎの長さ 約 <b>${Math.round(jn(pair).n * 60 / a.bpm * a.meter)}</b> 秒</span>`;
+  document.getElementById('whoA').innerHTML = `<b style="color:${C['--deck-a']}">前の曲</b>${a.title}`;
+  document.getElementById('whoB').innerHTML = `<b style="color:${C['--deck-b']}">次の曲</b>${b.title}`;
+  document.getElementById('ovl').textContent = `${jn(pair).n} 小節`;
+  document.getElementById('tpl').value = jn(pair).tpl;
+}
+
+// 小さな全体波形（使う範囲を選ぶ）
+function drawOv(id, t, rngId) {
+  const [g, W, H, d] = fitCanvas(document.getElementById(id));
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  drawWave(g, t, 0, t.duration, 0, W, 0, H, 0.25);
+  const x0 = t.use.t0 / t.duration * W, x1 = t.use.t1 / t.duration * W;
+  g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0, H); g.clip(); drawWave(g, t, 0, t.duration, 0, W, 0, H, 1); g.restore();
+  g.strokeStyle = '#fff'; g.lineWidth = 2 * d; g.strokeRect(x0, d, x1 - x0, H - 2 * d);
+  document.getElementById(rngId).textContent = `${fmt(t.use.t0)} – ${fmt(t.use.t1)}`;
+}
+function bindOv(id, get) {
+  const cv = document.getElementById(id);
+  let anchor = null;
+  const tm = ev => { const r = cv.getBoundingClientRect(); return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * get().duration; };
+  cv.addEventListener('pointerdown', ev => { cv.setPointerCapture(ev.pointerId); anchor = snap(get(), tm(ev), 'bar'); });
+  cv.addEventListener('pointermove', ev => {
+    if (anchor === null) return;
+    const s = snap(get(), tm(ev), 'bar'), t = get();
+    t.use = { t0: Math.min(anchor, s), t1: Math.max(anchor, s) };
+    drawAll();
+  });
+  cv.addEventListener('pointerup', () => { const t = get(); if (t.use.t1 - t.use.t0 < 2) t.use = { t0: 0, t1: t.duration }; anchor = null; renderAll(); });
+}
+bindOv('ovA', A); bindOv('ovB', B);
+
+// つなぎ目エディタ: 横軸は「つなぎ目からの小節数」。前の曲の範囲の終わりを右側、次の曲の範囲の頭を重なりの始まりに置く
+const VIEW = 48;   // 表示する小節数
+function layout() {
+  const a = A(), b = B(), n = jn(pair).n;
+  const aEnd = barIndex(a, a.use.t1), bStart = barIndex(b, b.use.t0);
+  // 表示の小節座標: 0 = 重なりの始まり。前の曲は [-(VIEW-n)/2 .. n]、次の曲は [0 .. ]
+  const left = -Math.round((VIEW - n) / 2);
+  return { a, b, n, aEnd, bStart, left };
+}
+function barTimeA(L, rel) { const i = L.aEnd - L.n + rel; return L.a.barTimes[Math.max(0, Math.min(L.a.barTimes.length - 1, i))]; }
+function barTimeB(L, rel) { const i = L.bStart + rel; return L.b.barTimes[Math.max(0, Math.min(L.b.barTimes.length - 1, i))]; }
+
+function drawEditor() {
+  const L = layout(), [g, W, H, d] = fitCanvas(document.getElementById('ed'));
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  const ppb = W / VIEW, xOfBar = rel => (rel - L.left) * ppb;
+  const ruler = 22 * d, lh = (H - ruler - 8 * d) / 2, yA = ruler, yB = ruler + lh + 8 * d;
+  // 重なり
+  g.fillStyle = 'rgba(34,197,94,.13)'; g.fillRect(xOfBar(0), ruler, L.n * ppb, H - ruler);
+  // 小節ごとに、それぞれの曲の小節の長さで伸縮して描く（拍軸表示と同じ考え方。テンポが違っても小節線がそろう）
+  for (let rel = L.left; rel < L.left + VIEW; rel++) {
+    const x0 = xOfBar(rel), x1 = xOfBar(rel + 1);
+    if (rel < L.n) {           // 前の曲は範囲の終わりまで
+      const ta = barTimeA(L, rel), tb = barTimeA(L, rel + 1);
+      const iA = L.aEnd - L.n + rel;
+      if (iA >= 0 && iA < L.aEnd) drawWave(g, L.a, ta, tb, x0, x1, yA, lh, rel < 0 ? 0.95 : 0.95);
+    }
+    if (rel >= 0) {            // 次の曲は範囲の頭から
+      const iB = L.bStart + rel;
+      if (iB + 1 < L.b.barTimes.length) drawWave(g, L.b, barTimeB(L, rel), barTimeB(L, rel + 1), x0, x1, yB, lh, 0.95);
+    }
+  }
+  // 小節線と目盛り
+  g.font = `${10 * d}px Consolas`;
+  for (let rel = L.left; rel <= L.left + VIEW; rel++) {
+    const x = Math.round(xOfBar(rel)), major = (rel % 4 === 0);
+    g.fillStyle = major ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.1)'; g.fillRect(x, ruler, d, H - ruler);
+    if (rel % 8 === 0) {
+      g.fillStyle = C['--dim'];
+      g.fillText(`${rel >= 0 ? '+' : ''}${rel}`, x + 3 * d, 14 * d);
+    }
+  }
+  // 印: 前の曲の範囲の終わり（Out）と次の曲の範囲の頭（In）
+  const mark = (x, y, col, label) => {
+    g.fillStyle = col; g.fillRect(Math.round(x) - d, y, 2 * d, lh);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + 9 * d, y); g.lineTo(x, y + 11 * d); g.closePath(); g.fill();
+    g.fillStyle = '#e8e8e8'; g.font = `${11 * d}px "Yu Gothic UI"`; g.fillText(label, x + 6 * d, y + lh - 6 * d);
+  };
+  mark(xOfBar(L.n), yA, C['--deck-a'], `前の曲の終わり ${fmt(L.a.use.t1)}（${L.aEnd + 1}小節目）`);
+  mark(xOfBar(0), yB, C['--deck-b'], `次の曲の始まり ${fmt(L.b.use.t0)}（${L.bStart + 1}小節目）`);
+  g.fillStyle = C['--deck-a']; g.fillRect(0, yA, 4 * d, lh);
+  g.fillStyle = C['--deck-b']; g.fillRect(0, yB, 4 * d, lh);
+  g.fillStyle = '#e8e8e8'; g.font = `${12 * d}px "Yu Gothic UI"`;
+  g.fillText(`重なり ${L.n} 小節`, xOfBar(0) + 6 * d, ruler + lh + 6 * d);
+}
+
+// ミキサーの動き（繋ぎ方のテンプレート）。u: 重なりの中の位置 0..1
+const TPL = {
+  long:   { xf: u => u < 0.25 ? 0.5 * u / 0.25 * 0.6 : u < 0.75 ? 0.3 + 0.4 * (u - 0.25) / 0.5 : 0.7 + 0.3 * (u - 0.75) / 0.25,
+            lowA: u => u < 0.5 ? 1 : 0, lowB: u => u < 0.5 ? 0 : 1 },
+  short:  { xf: u => Math.min(1, u * 1.2), lowA: u => u < 0.5 ? 1 : 0, lowB: u => u < 0.5 ? 0 : 1 },
+  bass:   { xf: () => 0.5, lowA: u => u < 0.5 ? 1 : 0, lowB: u => u < 0.5 ? 0 : 1 },
+  filter: { xf: u => u < 0.8 ? 0.5 : 0.5 + (u - 0.8) / 0.2 * 0.5, lowA: u => 1 - u, lowB: u => Math.min(1, u * 2) },
+  echo:   { xf: u => u < 0.9 ? 0 : 1, lowA: () => 1, lowB: () => 1 },
+};
+function drawAuto() {
+  const L = layout(), tpl = TPL[jn(pair).tpl], [g, W, H, d] = fitCanvas(document.getElementById('auto'));
+  g.fillStyle = '#0a0b0d'; g.fillRect(0, 0, W, H);
+  const ppb = W / VIEW, x0 = (0 - L.left) * ppb, x1 = (L.n - L.left) * ppb;
+  const rows = [['クロスフェーダー（上が次の曲）', tpl.xf, '#e8e8e8', 0], ['前の曲の LOW', tpl.lowA, C['--deck-a'], 1], ['次の曲の LOW', tpl.lowB, C['--deck-b'], 2]];
+  const rh = H / 3;
+  g.fillStyle = 'rgba(34,197,94,.10)'; g.fillRect(x0, 0, x1 - x0, H);
+  for (const [name, fn, col, r] of rows) {
+    const y0 = r * rh + 6 * d, h = rh - 12 * d;
+    g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, r * rh + rh - d, W, d);
+    g.strokeStyle = col; g.lineWidth = 2 * d; g.beginPath();
+    for (let x = 0; x <= W; x += 2) {
+      const u = (x - x0) / (x1 - x0);
+      const v = u < 0 ? fn(0) : u > 1 ? fn(1) : fn(u);
+      const y = y0 + (1 - (r === 0 ? v : v)) * h;
+      x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.stroke();
+    g.fillStyle = C['--dim']; g.font = `${11 * d}px "Yu Gothic UI"`; g.fillText(name, 8 * d, r * rh + 16 * d);
+  }
+}
+
+function drawAll() { drawOv('ovA', A(), 'rngA'); drawOv('ovB', B(), 'rngB'); drawEditor(); drawAuto(); }
+function renderAll() { renderHead(); drawAll(); renderQueue(); }
+
+// 下の曲を左右にドラッグ → 重なりの長さ（小節単位）
+(() => {
+  const cv = document.getElementById('ed');
+  let start = null;
+  cv.addEventListener('pointerdown', ev => { cv.setPointerCapture(ev.pointerId); start = { x: ev.clientX, n: jn(pair).n }; cv.style.cursor = 'grabbing'; });
+  cv.addEventListener('pointermove', ev => {
+    if (!start) return;
+    const r = cv.getBoundingClientRect(), ppb = r.width / VIEW;
+    const dBars = Math.round((start.x - ev.clientX) / ppb);
+    jn(pair).n = Math.max(1, Math.min(40, start.n + dBars));
+    renderHead(); drawEditor(); drawAuto();
+  });
+  cv.addEventListener('pointerup', () => { start = null; cv.style.cursor = 'grab'; renderQueue(); });
+})();
+document.getElementById('minus').addEventListener('click', () => { jn(pair).n = Math.max(1, jn(pair).n - 4); renderAll(); });
+document.getElementById('plus').addEventListener('click', () => { jn(pair).n = Math.min(40, jn(pair).n + 4); renderAll(); });
+document.getElementById('tpl').addEventListener('change', e => {
+  jn(pair).tpl = e.target.value;
+  if (e.target.value === 'short') jn(pair).n = 8;
+  if (e.target.value === 'echo') jn(pair).n = 2;
+  renderAll();
+});
+document.getElementById('prev').addEventListener('click', () => { pair = Math.max(0, pair - 1); renderAll(); });
+document.getElementById('next').addEventListener('click', () => { pair = Math.min(T.length - 2, pair + 1); renderAll(); });
+addEventListener('resize', renderAll);
+renderAll();
+</script>
+</body></html>

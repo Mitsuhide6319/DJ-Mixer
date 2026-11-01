@@ -1,0 +1,10 @@
+.venv/
+work/
+__pycache__/
+data/
+
+# 起動用のショートカットは各自の PC で作る（setup.bat / tools\make_shortcut.ps1）。中身がその PC のパスになるため
+DJ Mixer.lnk
+
+# ミックスの曲解説は Obsidian（趣味/音楽/フュージョン）で管理する（2026-11-01）
+mix_notes/

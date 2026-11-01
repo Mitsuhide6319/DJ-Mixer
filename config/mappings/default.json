@@ -1,0 +1,29 @@
+{
+ "entries": [
+  {
+   "port": "nanoKONTROL2 0",
+   "type": "cc",
+   "ch": 0,
+   "num": 16,
+   "action": "mixer.A.gain",
+   "mode": "abs"
+  },
+  {
+   "port": "nanoKONTROL2 0",
+   "type": "cc",
+   "ch": 0,
+   "num": 17,
+   "action": "mixer.B.gain",
+   "mode": "abs"
+  },
+  {
+   "port": "nanoKONTROL2 0",
+   "type": "cc",
+   "ch": 0,
+   "num": 32,
+   "action": "deck.B.keylock",
+   "mode": "button"
+  }
+ ],
+ "name": "default"
+}
